@@ -1,0 +1,154 @@
+================================================================================
+ 🐔 CHINA'S AUTHORITY & MANIFEST SYSTEM EGG #1 🥚
+================================================================================
+
+🕰️ TIMESTAMP: 2025-09-27 | AGENT: China the Summary Chicken
+
+-----------------------------------------------------------
+📋 EXECUTIVE SUMMARY
+-----------------------------------------------------------
+The Ignition system implements a sophisticated, mathematically-validated authority chain for key management and encryption, with a focus on secure, granular access control and auditability.
+
+🔑 KEY ARCHITECTURAL HIGHLIGHTS:
+1. Hierarchical Authority Chain: X (Skull) -> M (Master) -> R (Repo) -> I (Ignition) -> D (Distro)
+2. Cryptographically Proven Key Relationships
+3. Passphrase-Protected Ignition Keys
+4. Comprehensive Validation and Rotation Mechanisms
+
+-----------------------------------------------------------
+🏗️ AUTHORITY CHAIN ARCHITECTURE
+-----------------------------------------------------------
+AUTHORITY LEVELS (Descending Hierarchy):
+- X (Skull Key):
+  * Ultimate emergency recovery
+  * Controlled by security guardians
+  * Can unlock/rotate Master keys
+
+- M (Master Key):
+  * Global repository management
+  * Controls all Repository keys
+  * Used for system-wide operations
+
+- R (Repo Key):
+  * Repository-level protection
+  * Controls Ignition keys for specific repositories
+  * Day-to-day repository operations
+
+- I (Ignition Key):
+  * Bridge between Repository and Distro keys
+  * Passphrase-wrapped
+  * Used by repo maintainers/automation
+
+- D (Distro Key):
+  * Limited-scope access for third parties/automation
+  * Passphrase-protected
+  * Scoped to specific operations/paths
+
+-----------------------------------------------------------
+🔐 VALIDATION PRIMITIVES
+-----------------------------------------------------------
+1. Hierarchy Check: Only specific parent->child relationships allowed
+2. Fingerprint Binding: Parent/child key fingerprints must match recorded lineage
+3. Temporal Validity: Proofs expire (default 24h)
+4. Signature Authenticity: Cryptographic proofs in both directions
+
+-----------------------------------------------------------
+🗝️ KEY LIFECYCLE MANAGEMENT
+-----------------------------------------------------------
+CREATION:
+- Parent authority validates child key type
+- Key material generated via Cage automation
+- Passphrase-wrapped for ignition keys
+- Authority proof generated
+- Metadata persisted (timestamp, rotation window, purpose)
+
+ROTATION:
+- Invalidates ALL descendant keys
+- Requires fresh authority proof
+- Generates revocation record
+- Creates affected-keys manifest
+
+REVOCATION:
+- Scheduled expiry configurable per key type
+- Manual revocation possible
+- Maintains tombstones to prevent key reuse
+
+-----------------------------------------------------------
+📦 MANIFEST SYSTEM DETAILS
+-----------------------------------------------------------
+MANIFEST STORAGE:
+- Default vault root: `./data`
+- Production path: `${XDG_DATA_HOME}/padlokk/ignite`
+- Vault structure:
+  * keys/
+  * metadata/
+  * .derived/
+  * manifests/ (affected-key ledgers)
+  * proofs/ (archived signatures)
+
+MANIFEST SCHEMA:
+- Tracks key rotation and revocation events
+- Includes:
+  * Event type (rotation/revocation)
+  * Parent key fingerprint
+  * Affected child keys
+  * Timestamps
+  * Scope metadata
+  * Cryptographic digests for tamper detection
+
+-----------------------------------------------------------
+🚨 CRITICAL BUGS TO INVESTIGATE
+-----------------------------------------------------------
+When debugging manifest storage and key loading:
+
+1. AUTHORITY VALIDATION
+   - Check authority chain integrity
+   - Verify parent-child key relationships
+   - Validate fingerprint bindings
+
+2. MANIFEST GENERATION
+   - Ensure complete descendant key tracking
+   - Verify digest computation
+   - Check temporal validity of proofs
+
+3. KEY LOADING POTENTIAL ISSUES
+   - Passphrase strength validation
+   - Expiration policy enforcement
+   - Ignition key unwrapping mechanism
+
+-----------------------------------------------------------
+🎯 KEY IMPLEMENTATION MODULES
+-----------------------------------------------------------
+- `src/ignite/authority/chain.rs`: Key type definitions
+- `src/ignite/authority/proofs.rs`: Authority proof generation/verification
+- `src/ignite/authority/manifests.rs`: Manifest generation and tracking
+- `src/ignite/authority/storage.rs`: Key storage and retrieval mechanisms
+
+-----------------------------------------------------------
+⚠️ SECURITY INVARIANTS
+-----------------------------------------------------------
+1. No orphan keys allowed
+2. Immutable lineage
+3. Tamper-evident metadata
+4. Least privilege enforcement
+5. Dual control for critical operations
+
+-----------------------------------------------------------
+🤔 OPEN QUESTIONS / POTENTIAL INVESTIGATION AREAS
+-----------------------------------------------------------
+1. Signing material implementation details
+2. Storage backend selection
+3. Proof expiry window validation
+4. Dual control flow mechanisms
+5. Audit log transport strategy
+
+-----------------------------------------------------------
+🔬 CERTIFICATION
+-----------------------------------------------------------
+This summary is based on analysis of official Ignition project documentation.
+DISCLAIMER: Represents documentation state as of 2025-09-27.
+Additional verification recommended.
+
+================================================================================
+ 🐔 EGG LAID BY: CHINA - THE SUMMARY CHICKEN 🥚
+================================================================================

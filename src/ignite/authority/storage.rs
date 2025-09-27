@@ -79,8 +79,11 @@ pub fn load_key(key_type: KeyType, fingerprint: &KeyFingerprint) -> Result<Autho
     let json = fs::read_to_string(&path)
         .map_err(|e| IgniteError::io_error("read_key", path.clone(), e))?;
 
-    serde_json::from_str(&json)
-        .map_err(|e| IgniteError::crypto_error("deserialize_key", e.to_string()))
+    let mut key: AuthorityKey = serde_json::from_str(&json)
+        .map_err(|e| IgniteError::crypto_error("deserialize_key", e.to_string()))?;
+
+    key.set_key_path(path);
+    Ok(key)
 }
 
 /// Persist proof bundle to vault
@@ -227,11 +230,24 @@ mod tests {
     use crate::ignite::authority::proofs::{AuthorityClaim, ProofBundle};
     use crate::ignite::authority::manifests::{AffectedKeyManifest, ManifestEvent, ManifestEventType, ManifestChild};
     use crate::ignite::authority::chain::{KeyMaterial, KeyFormat, KeyType};
+    use serial_test::serial;
 
-    fn setup_test_env() -> TempDir {
-        let temp_dir = TempDir::new().unwrap();
-        env::set_var("XDG_DATA_HOME", temp_dir.path());
-        temp_dir
+    struct TestEnvironment {
+        _temp_dir: TempDir,
+    }
+
+    impl TestEnvironment {
+        fn new() -> Self {
+            let temp_dir = TempDir::new().unwrap();
+            env::set_var("IGNITE_DATA_ROOT", temp_dir.path());
+            Self { _temp_dir: temp_dir }
+        }
+    }
+
+    impl Drop for TestEnvironment {
+        fn drop(&mut self) {
+            env::remove_var("IGNITE_DATA_ROOT");
+        }
     }
 
     fn create_test_key_material() -> KeyMaterial {
@@ -250,9 +266,15 @@ mod tests {
         AuthorityKey::new(key_material, KeyType::Master, None, None).unwrap()
     }
 
+    fn create_test_authority_key_with_type(key_type: KeyType) -> AuthorityKey {
+        let key_material = create_test_key_material();
+        AuthorityKey::new(key_material, key_type, None, None).unwrap()
+    }
+
     #[test]
+    #[serial]
     fn test_key_storage_round_trip() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
         let original_key = create_test_authority_key();
 
         // Save the key
@@ -270,8 +292,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_proof_storage_round_trip() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
         let signing_key = {
             let mut random = rng();
             let secret_bytes: [u8; 32] = random.random();
@@ -306,8 +329,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_manifest_storage_round_trip() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
         let parent_fp = KeyFingerprint::from_string("SHA256:parent123").unwrap();
         let child_fp = KeyFingerprint::from_string("SHA256:child456").unwrap();
 
@@ -343,13 +367,13 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_keys() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
 
         // Save multiple keys of different types
-        let master_key = create_test_authority_key();
-        let repo_key_material = create_test_key_material();
-        let repo_key = AuthorityKey::new(repo_key_material, KeyType::Repo, None, None).unwrap();
+        let master_key = create_test_authority_key_with_type(KeyType::Master);
+        let repo_key = create_test_authority_key_with_type(KeyType::Repo);
 
         save_key(&master_key).unwrap();
         save_key(&repo_key).unwrap();
@@ -368,8 +392,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_atomic_write_safety() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
         let test_path = utils::data_root().join("test_atomic.json");
         let test_data = b"test data";
 
@@ -387,8 +412,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_init_vault_creates_directories() {
-        let _temp_dir = setup_test_env();
+        let _test_env = TestEnvironment::new();
 
         init_vault().unwrap();
 

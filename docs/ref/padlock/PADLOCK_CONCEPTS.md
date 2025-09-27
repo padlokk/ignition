@@ -1,209 +1,173 @@
-# Padlock Key Hierarchy & Command Structure
+# 🔑 Padlock Concepts – Authority, Automation, and Recovery
 
-## Key Hierarchy (Authority Chain)
+This document distills the core mental models underpinning Padlock. It is written for engineers building or operating the platform, and should be read alongside `PADLOCK_PRD.md` and `PADLOAD_ROADMAP.md`.
+
+---
+
+## 1. Authority Chain at a Glance
 
 ```
-X => M => R => I => D
+X (Skull) → M (Master) → R (Repo) → I (Ignition) → D (Distro)
 ```
 
-### Key Types
-- **X (Skull Key)**: Master ignition key - ultimate backup authority (passphrase-wrapped)
-- **M (Master Key)**: Global master key for all repos  
-- **R (Repo Key)**: Individual repository encryption key
-- **I (Repo-Ignition Master Key)**: Authority key that bridges R to D keys (passphrase-wrapped)
-- **D (Distro Key)**: Distributed third-party/AI access keys (passphrase-wrapped)
+| Tier | Type | Storage Form | Primary Owner | Responsibilities |
+|------|------|--------------|---------------|------------------|
+| **X** | Ignition (passphrase) | Offline / Split custody | Security Guardians | Disaster recovery, M key bootstrap |
+| **M** | Raw keypair | Platform Security | Global operations, new repo onboarding |
+| **R** | Raw keypair | Repo Maintainers | Day-to-day encryption + rotations |
+| **I** | Ignition (passphrase) | Repo Ops | Bridge between R and D, rotation orchestrator |
+| **D** | Ignition (passphrase) | Automation / AI Agents | Scoped access for CI, tooling, AI |
 
-### Ignition Key Concept
-An "ignition key" is **any key wrapped by a passphrase**. You access the actual key via the passphrase. This includes:
-- **X**: Skull ignition key (passphrase unlocks master key)
-- **I**: Repo-ignition master key (passphrase unlocks repo access authority) 
-- **D**: Distributed ignition key (passphrase unlocks repo access for third parties)
+### Directionality
+- **Authority** flows downward: each parent can create, rotate, or revoke its child tier.
+- **Subject (lineage)** flows upward: each child proves provenance to its parent via Ed25519 receipts.
 
-**I** is NOT a third-party access key - it's the **authority key** that controls D keys. **D** keys are the actual third-party access keys.
+### Ignition Keys
+“Ignition” refers to any key material wrapped by a passphrase. X, I, and D are ignition keys. Cage provides the passphrase UX; Ignite records the lineage and manifests.
 
-### Authority Relationships
+---
 
-**Authority flows DOWN the chain:**
-- X has authority over M (skull can unlock master)
-- M has authority over R (master can unlock any repo)  
-- R has authority over I (repo controls its ignition keys)
-- I has authority over D (ignition keys control their distro keys)
+## 2. Core Components
 
-**Subject relationships flow UP the chain:**
-- M is subject to X (master is controlled by skull)
-- R is subject to M (repo is controlled by master)
-- I is subject to R (ignition is controlled by repo)
-- D is subject to I (distro is controlled by ignition)
+### 2.1 Cage (Automation Layer)
+- PTY-safe Age automation (lock/unlock/status) with zero TTY prompts.
+- Passphrase manager abstractions (environment variables, delegated prompts).
+- Audit logger capturing operation, scope, and recipient hashes.
+- Exposes `CrudManager`, `LockOptions`, `UnlockOptions` for higher-level workflows.
 
-### Key Testing Commands
+### 2.2 Ignite (Authority Layer)
+- Data models for keys, fingerprints, manifests, proofs.
+- Storage adapters (XDG-aware vault: `keys/`, `proofs/`, `manifests/`, `metadata/`).
+- CLI surface for key lifecycle, status, manifest verification.
+- Proof engine (Ed25519) signing authority claims + subject receipts.
+- Manifest generation for rotations/revocations with digest verification.
 
-```bash
-# Authority tests (parent -> child):
-padlock key authority --key1=/path/skull.key --key2=/path/master.key
-padlock key authority --key1=/path/master.key --key2=/path/repo.key
-padlock key authority --key1=/path/repo.key --key2=/path/ignition.key
-padlock key authority --key1=/path/ignition.key --key2=/path/distro.key
+### 2.3 Padlock CLI (Unification Layer)
+- Orchestrates Cage + Ignite commands into end-to-end workflows.
+- Provides guardrails (dependency checks, policy enforcement, dual control prompts).
+- Hosts high-level commands: `padlock init`, `padlock rotate`, `padlock ignite`, `padlock status`.
 
-# Subject tests (child of parent):
-padlock key subject --key1=/path/master.key --key2=/path/skull.key
-padlock key subject --key1=/path/repo.key --key2=/path/master.key
-padlock key subject --key1=/path/ignition.key --key2=/path/repo.key
-padlock key subject --key1=/path/distro.key --key2=/path/ignition.key
+---
 
-# Type detection:
-padlock key is skull --key=/path/maybe.key
-padlock key is master --key=/path/maybe.key
-padlock key is ignition --key=/path/maybe.key
-padlock key is expired --key=/path/maybe.key
+## 3. Data & Storage Model
 
-# Type identification:
-padlock key type --key=/path/mystery.key    # Returns: skull|master|repo|ignition|distro|unknown
+```
+~/.local/share/padlokk/ignite
+├── keys/
+│   ├── skull/
+│   ├── master/
+│   ├── repo/
+│   ├── ignition/
+│   └── distro/
+├── proofs/
+│   └── <fingerprint>/timestamp.json
+├── manifests/
+│   └── <parent-short>/timestamp_event.json
+└── metadata/
+    ├── policy.toml
+    └── tombstones/
 ```
 
-## Command Structure Patterns
+- **Keys** – Serialized `AuthorityKey` records, including material (encrypted where applicable) and metadata.
+- **Proofs** – Canonical JSON payloads + signature bundles, one directory per parent fingerprint.
+- **Manifests** – Affected-key manifests capturing cascaded revocations/rotations (immutable).
+- **Metadata** – Policy definitions, rotation schedules, tombstones for revoked fingerprints.
 
-### Mini-Dispatchers
-Commands are organized into logical namespaces:
+Atomic write path: serialize → temp file (`.tmp`) → fsync → rename. All reads validate JSON + digest.
 
-```bash
-# Master key operations
-padlock master generate
-padlock master show  
-padlock master restore
-padlock master unlock
+---
 
-# Ignition key operations  
-padlock ignite create [name]
-padlock ignite unlock [name]
-padlock ignite allow <pubkey>
+## 4. Cryptography & Proofs
 
-# Generic key operations
-padlock key is <type> --key=/path
-padlock key authority --key1=/path --key2=/path
-padlock key subject --key1=/path --key2=/path
-padlock key type --key=/path
-```
+- **Fingerprints**: SHA256 of key material (`algorithm:fingerprint` format).
+- **Proof Bundle**: `{ payload_json, digest, signature, public_key, expires_at }`.
+- **Canonical JSON**: Keys sorted lexicographically, RFC3339 timestamps, ASCII only.
+- **Nonces**: 128-bit cryptographically random strings via `hub::random_ext`.
+- **Expiry**: Default 24h; renewal scheduler ensures fresh proofs before expiry window.
 
-### Argument Patterns
+Validation flow:
+1. Check payload digest matches stored `digest`.
+2. Verify Ed25519 signature against `public_key`.
+3. Ensure `expires_at` future timestamp.
+4. Confirm parent/child fingerprints align with registered keys.
 
-**Positional Arguments**: Required inputs, natural order
-```bash
-padlock ignite create ai-bot        # name is positional
-padlock rotate ignition ai-bot      # type and name are positional
-```
+---
 
-**Flag Arguments**: Optional modifiers, clarify ambiguous inputs
-```bash
-padlock ignite create ai-bot --phrase="secret"   # modifier at end
-padlock key is skull --path=/maybe/key          # clarify path vs flag
-```
+## 5. Operational Lifecycles
 
-### Rotation Clarity
-Always specify WHAT is being rotated:
+### 5.1 Key Creation
+1. Ensure parent tier exists and has authority.
+2. Generate key material (Ed25519 or Age) using Cage helper.
+3. Wrap private material if ignition tier.
+4. Persist key + metadata (`AuthorityKey::save`).
+5. Emit proof bundle + manifest entry if the command affects existing hierarchy.
 
-```bash
-padlock rotate master              # Rotate master key
-padlock rotate ignition [name]     # Rotate ignition key  
-padlock rotate distro [name]       # Rotate distro key
-# NOT: padlock rotate (rotate what??)
-```
+### 5.2 Rotation
+1. Validate parent authority and child state.
+2. Create new key material; mark old key as archived.
+3. Generate manifests enumerating all affected descendants.
+4. Cascade updates to D keys (either revoke or reissue).
+5. Trigger Cage workflows to re-lock artifacts with new recipients.
+6. Store proofs + manifests; schedule follow-up tasks (e.g., notifications).
 
-### Revocation Clarity  
-Always specify WHAT is being revoked:
+### 5.3 Revocation
+1. Identify target key + dependents.
+2. Update manifests with revocation event.
+3. Move key to tombstones; block re-registration.
+4. Notify consuming systems (webhook / CLI output).
+5. Optionally enforce clamp mode (Cage) until replacements issued.
 
-```bash
-padlock revoke ignition [name]     # Revoke ignition key
-padlock revoke distro [name]       # Revoke distro key  
-# NOT: padlock revoke (revoke what??)
-```
+---
 
-## Security Model
+## 6. Policy & Governance
 
-### Revocation Boundaries
-- Rotating **I** keys invalidates ALL **D** keys derived from them
-- Rotating **R** keys invalidates ALL **I** and **D** keys for that repo
-- Rotating **M** key invalidates ALL **R**, **I**, and **D** keys globally
+- **Expiration Policies** – Configurable per tier (e.g., D keys ≤ 30 days, I keys ≤ 90 days).
+- **Dual Control** – Skull and Master actions require secondary confirmation (e.g., signed token, out-of-band approval).
+- **Recipient Scoping** – D keys are tagged with repo + path scopes, enforced by Cage when constructing recipient lists.
+- **Audit Requirements** – Every mutation must produce manifest + proof; logs contain fingerprint, actor, reason codes.
 
-### Access Patterns
-- **AI/Automation**: Uses **D** keys (distributed ignition keys) with `PADLOCK_IGNITION_PASS` environment variable
-- **Repo Authority**: Uses **I** keys (repo-ignition master) to manage D key access
-- **Human Users**: Uses **R** keys directly or **M** key for emergency access
-- **Emergency Recovery**: Uses **X** skull ignition key to restore **M** master key
+---
 
-### Upstream Expiration
-Repository-controlled auto-rotation:
-- Repo tracks when ignition keys were created
-- Auto-rotates **I** keys after configured period (e.g., 6 months)
-- Cannot be bypassed by filename/clock manipulation
-- Repository owner controls the expiration policy
+## 7. Interfaces & Extensibility
 
-## Final Clean Command API
+### CLI Highlights
+- `ignite create --key-type <tier>`
+- `ignite list --key-type <tier>`
+- `ignite status`
+- `ignite verify <file>`
 
-```bash
-# Repository management
-padlock clamp /repo [--with-ignition]
-padlock release /repo
-padlock status
+Planned Padlock CLI wrappers will expose higher-level workflows (`padlock rotate`, `padlock ignite allow`).
 
-# Daily operations
-padlock lock
-padlock unlock
+### Library Surface
+- `ignite::authority::{AuthorityKey, KeyType, ManifestEvent, ProofBundle}`
+- `ignite::authority::storage::{save_key, load_key, save_manifest, save_proof}`
+- `ignite::guards::ensure_age_available()` for dependency checks.
 
-# Master key dispatcher  
-padlock master generate
-padlock master show
-padlock master restore
-padlock master unlock
+### Integration Hooks (Planned)
+- Webhook dispatch on manifest creation.
+- JSON output (`--output json`) for CLI commands.
+- Policy config file watchers to auto-apply rotation cadences.
 
-# Ignition dispatcher
-padlock ignite create [name] [--phrase="..."]
-padlock ignite unlock [name]  
-padlock ignite allow <pubkey>
+---
 
-# Generic key operations
-padlock key is <type> --path=/path
-padlock key authority <key1> <key2>
-padlock key subject <key1> <key2>
+## 8. Recovery & Incident Patterns
 
-# Rotation (verb-first, explicit)
-padlock rotate master
-padlock rotate ignition [name] 
-padlock rotate distro [name]
+1. **Emergency Access (Skull)** – Offline passphrase fragments reconstituted; Skull unlocks Master; operations logged in manifest `emergency` event.
+2. **Repo Compromise** – `padlock ignite revoke --scope=repo/<id>` triggers manifest + clamps Cage operations to read-only until new D keys deployed.
+3. **Lost D Key** – operator issues `padlock ignite rotate distro <name>` to replace passphrase; manifest marks old key revoked and new key issued.
 
-# Revocation (explicit predicate)
-padlock revoke ignition [name]
-padlock revoke distro [name]
+---
 
-# File security operations
-padlock sec /path              # Secure file (was: map)
-padlock dec /path              # De-secure file (was: unmap)  
-padlock autosec                # Auto-secure sensitive files
+## 9. Related Documents
+- Product strategy: `PADLOCK_PRD.md`
+- Roadmap & milestones: `PADLOAD_ROADMAP.md`
+- Security analysis: `docs/ref/padlock/security_analysis.md`
+- Runbooks & test plans: `docs/ref/padlock/TEST_PLAN_001.md`
 
-# Discovery (command + filter)
-padlock ls [ignition|repos]
-padlock clean [--dry-run]
+---
 
-# Repository repair (intelligent)
-padlock repair                 # Smart repair for lockout situations
-
-# Internal events
-padlock _on_commit             # Git pre-commit hook
-padlock _on_checkout           # Git post-checkout hook
-```
-
-## Mental Models
-
-### Clamp/Release
-- **Clamp**: "We're clamping down security - this is serious, you could get locked out"
-- **Release**: "Release the clamp, back to normal state"
-
-### Ignition Keys  
-- **Ignition Key**: Any key wrapped by a passphrase - you unlock the actual key via passphrase
-- **I (Repo-Ignition Master)**: Authority key that bridges repo to distributed access, maintains security veil
-- **D (Distributed Ignition)**: Third-party access keys derived from and controlled by I keys
-- Used for passphrase-based access where `PADLOCK_IGNITION_PASS` unlocks the key
-
-### Authority Chain
-- Keys have **parent/child relationships** following the math hierarchy
-- Authority flows **down** the chain (parents control children)
-- Subject relationships flow **up** the chain (children are subject to parents)
+## 10. Future Considerations
+- Multi-repo policy coordination (e.g., global rotations on schedule).
+- Federation across organizations (delegated trust domains).
+- Metrics/telemetry pipeline respecting privacy while surfacing health signals.
+- UX for AI agents to request temporary elevation with human approval.

@@ -11,3 +11,8 @@ pub mod storage;
 pub use chain::{KeyType, KeyFingerprint, KeyMaterial, KeyFormat, AuthorityKey, KeyMetadata};
 pub use proofs::{AuthorityClaim, SubjectReceipt, ProofBundle};
 pub use manifests::{AffectedKeyManifest, ManifestEvent, ManifestChild};
+
+
+
+
+//corrective AuthorityChain?

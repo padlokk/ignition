@@ -10,8 +10,43 @@ use hub::data_ext::serde::{Deserialize, Serialize};
 
 use crate::ignite::error::{IgniteError, Result};
 
+//corrective
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+// pub enum KeyType {
+//     Skull,
+//     Master,
+//     Repo,
+//     Ignition,
+//     Distro,
+// }
+
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// pub struct KeyFingerprint(String);
+
+// impl KeyFingerprint {
+//     pub fn new(value: impl Into<String>) -> Self {
+//         Self(value.into())
+//     }
+
+//     pub fn as_str(&self) -> &str {
+//         &self.0
+//     }
+// }
+
+// #[derive(Debug, Default)]
+// pub struct AuthorityChain;
+
+// impl AuthorityChain {
+//     pub fn new() -> Self {
+//         Self
+//     }
+// }
+
+
 /// Key types in the authority hierarchy (X→M→R→I→D)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
 pub enum KeyType {
     /// X - Skull Key (Ultimate Authority)
     Skull,
@@ -85,23 +120,53 @@ impl KeyType {
     }
 }
 
-impl fmt::Display for KeyType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            KeyType::Skull => write!(f, "skull"),
-            KeyType::Master => write!(f, "master"),
-            KeyType::Repo => write!(f, "repo"),
-            KeyType::Ignition => write!(f, "ignition"),
-            KeyType::Distro => write!(f, "distro"),
+impl From<KeyType> for String {
+    fn from(kt: KeyType) -> String {
+        match kt {
+            KeyType::Skull => "skull".to_string(),
+            KeyType::Master => "master".to_string(),
+            KeyType::Repo => "repo".to_string(),
+            KeyType::Ignition => "ignition".to_string(),
+            KeyType::Distro => "distro".to_string(),
         }
     }
 }
 
+impl TryFrom<String> for KeyType {
+    type Error = IgniteError;
+
+    fn try_from(s: String) -> Result<Self> {
+        KeyType::from_str(&s)
+    }
+}
+
+impl fmt::Display for KeyType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from(*self))
+    }
+}
+
 /// Cryptographic fingerprint for key identification
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
 pub struct KeyFingerprint {
     fingerprint: String,
     algorithm: String,
+}
+
+impl From<KeyFingerprint> for String {
+    fn from(fp: KeyFingerprint) -> String {
+        format!("{}:{}", fp.algorithm, fp.fingerprint)
+    }
+}
+
+impl TryFrom<String> for KeyFingerprint {
+    type Error = IgniteError;
+
+    fn try_from(s: String) -> Result<Self> {
+        KeyFingerprint::from_string(&s)
+    }
 }
 
 impl KeyFingerprint {
@@ -154,7 +219,7 @@ impl KeyFingerprint {
 
 impl fmt::Display for KeyFingerprint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.algorithm, self.short())
+        write!(f, "{}:{}", self.algorithm, self.fingerprint)
     }
 }
 
@@ -297,6 +362,10 @@ impl AuthorityKey {
 
     pub fn key_path(&self) -> Option<&Path> {
         self.key_path.as_deref()
+    }
+
+    pub fn set_key_path(&mut self, path: PathBuf) {
+        self.key_path = Some(path);
     }
 
     /// Save this key to vault storage

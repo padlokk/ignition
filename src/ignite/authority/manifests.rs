@@ -11,11 +11,49 @@ use sha2::{Digest, Sha256};
 use crate::ignite::error::{IgniteError, Result};
 use super::chain::{KeyFingerprint, KeyType};
 
+
+//corrective
+// pub struct Manifest;
+
+// impl Manifest {
+//     pub fn new() -> Self {
+//         Self
+//     }
+// }
+
+
+
 /// Type of manifest event
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
 pub enum ManifestEventType {
     Rotation,
     Revocation,
+}
+
+impl From<ManifestEventType> for String {
+    fn from(event_type: ManifestEventType) -> String {
+        match event_type {
+            ManifestEventType::Rotation => "rotation".to_string(),
+            ManifestEventType::Revocation => "revocation".to_string(),
+        }
+    }
+}
+
+impl TryFrom<String> for ManifestEventType {
+    type Error = IgniteError;
+
+    fn try_from(s: String) -> Result<Self> {
+        match s.as_str() {
+            "rotation" => Ok(ManifestEventType::Rotation),
+            "revocation" => Ok(ManifestEventType::Revocation),
+            _ => Err(IgniteError::InvalidOperation {
+                operation: "parse_event_type".to_string(),
+                reason: format!("Unknown event type: {}", s),
+            }),
+        }
+    }
 }
 
 impl ManifestEventType {
@@ -202,12 +240,12 @@ impl AffectedKeyManifest {
             .collect();
 
         let event_json = format!(
-            r#"{{"initiated_at":"{}","initiated_by":"{}","parent_fingerprint":"{}","reason":"{}","type":"{}"}}"#,
+            r#"{{"event_type":"{}","initiated_at":"{}","initiated_by":"{}","parent_fingerprint":"{}","reason":"{}"}}"#,
+            self.event.event_type.as_str(),
             self.event.initiated_at.to_rfc3339(),
             self.event.initiated_by,
             self.event.parent_fingerprint,
-            self.event.reason,
-            self.event.event_type.as_str()
+            self.event.reason
         );
 
         Ok(format!(
@@ -244,7 +282,7 @@ impl AffectedKeyManifest {
         // Insert digest into canonical JSON
         // Find the position after "children":[...] and before "event":
         let insert_pos = canonical
-            .find(r#","event":"#)
+            .find(",\"event\":")
             .ok_or_else(|| IgniteError::InvalidOperation {
                 operation: "insert_digest".to_string(),
                 reason: "Could not find event field in JSON".to_string(),
@@ -252,7 +290,7 @@ impl AffectedKeyManifest {
 
         let mut result = String::with_capacity(canonical.len() + digest_json.len() + 20);
         result.push_str(&canonical[..insert_pos]);
-        result.push_str(r#","digest":"#);
+        result.push_str(",\"digest\":");
         result.push_str(&digest_json);
         result.push_str(&canonical[insert_pos..]);
 
