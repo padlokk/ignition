@@ -189,15 +189,21 @@ fn handle_create(args: &Args) -> IgniteResult<()> {
 fn handle_list(args: &Args) -> IgniteResult<()> {
     use ignite::ignite::authority::storage;
 
-    // Parse arguments: ignite list [<key_type>] [--role=<key_type>]
-    // Use remaining() to get non-flag arguments
+    // Parse arguments: ignite list [<key_type>] [--key-type=<type>] [--role=<type>]
+    // Support multiple ways to specify the filter for backward compatibility
     let remaining = args.remaining();
     let key_type_arg = remaining.get(0).map(|s| s.as_str()).unwrap_or("");
+    let key_type_opt = get_var("opt_key_type");
     let role_opt = get_var("opt_role");
 
     let key_type_filter = if !key_type_arg.is_empty() && !key_type_arg.starts_with("--") {
+        // Positional argument
         Some(key_type_arg.to_string())
+    } else if !key_type_opt.is_empty() {
+        // --key-type flag (legacy compatibility)
+        Some(key_type_opt)
     } else if !role_opt.is_empty() {
+        // --role flag (alias)
         Some(role_opt)
     } else {
         None
