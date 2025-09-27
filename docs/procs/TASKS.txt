@@ -78,6 +78,10 @@ Updated: 2025-09-28
   • Implement `ignite ls`, `ignite status` command handlers.
   • Acceptance: CLI outputs include expiry warnings and recipient set summaries.
 
+[2] IG-0208 — Age Binary Guard (M2.1)
+  • Ensure runtime checks surface a clear error when `age` is missing.
+  • Acceptance: CLI/unit tests simulate missing binary and receive actionable guidance.
+
 [3] IG-0207 — Affected-Key Manifest Schema (M2.2)
   • Define manifest JSON (fingerprint, md5, scope, issued_at) and hashing rules.
   • Acceptance: Rotation writes manifest; validation job verifies digest integrity.

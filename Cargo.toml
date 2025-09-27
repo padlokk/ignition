@@ -1,11 +1,11 @@
 [package]
-name = "cage"
-version = "0.4.0"
+name = "ignite"
+version = "0.1.0"
 edition = "2021"
-description = "Age encryption automation CLI with PTY support"
-repository = "https://github.com/padlokk/ignition"
-license = "AGPL-3.0"            
-publish = false  
+description = "Ignition authority chain CLI built atop cage"
+repository = "https://github.com/padlokk/ignite"
+license = "AGPL-3.0"
+publish = false
 
 
 
@@ -15,7 +15,15 @@ path = "src/bin/cli_ignite.rs"
 
 [dependencies]
 
+# Core dependencies
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+ed25519-dalek = { version = "2", features = ["std"] }
+
 # RSB ecosystem dependencies
-cage = { git = "https://github.com/padlokk/cage", branch = "main" }
+cage = { path = "../cage" }
 rsb = { git = "https://github.com/oodx/rsb", branch = "main" }
 hub = { git = "https://github.com/oodx/hub.git", features = ["terminal-ext"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4"

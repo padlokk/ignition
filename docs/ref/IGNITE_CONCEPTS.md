@@ -82,6 +82,13 @@ Validation primitives:
 
 See `docs/ref/IGNITE_MANIFEST.md` for the formal manifest schema and digest rules.
 
+### 4.6 Module Structure
+- Rust crate follows `MODULE_SPEC` (see `docs/ref/rsb/MODULE_SPEC.md`).
+- Core namespace lives under `src/ignite/` with orchestrators-only `mod.rs` files and thin helpers (`utils.rs`, `macros.rs`, `error.rs`).
+- Authority domain: `src/ignite/authority/{chain,proofs,manifests,storage}`.
+- CLI surface: `src/ignite/cli/{commands,context}`; entry point `src/bin/cli_ignite.rs` will use RSB `bootstrap!/options!/dispatch!`.
+- Guards + utilities: `src/ignite/{guards,utils}`; per-module adapters land in `authority/adapters/` when needed.
+
 ---
 
 ## 5. Required Validations

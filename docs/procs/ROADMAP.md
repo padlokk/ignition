@@ -49,6 +49,7 @@ Goal: Build end-to-end ignition key lifecycle flows on top of Cage/age recipient
 Milestone 2.1 — Key Generation Pipeline (9 pts)
   • Wire `AuthorityAgeKeyGenerator` to storage + audit logging.
   • Record recipient set versions when keys are minted.
+  • Add runtime guard ensuring `age` binary is available (friendly error).
   • Exit: Integration test creating X→M→R chain locally with recipient audit trail.
 
 Milestone 2.2 — Rotation & Revocation (8 pts)

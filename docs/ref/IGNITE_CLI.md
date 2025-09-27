@@ -6,6 +6,12 @@
 
 Refer to `docs/ref/rsb/CLI_RSB_USAGE.md` for RSB flag ordering, and `docs/ref/rsb/PRELUDE_POLICY.md` / `MODULE_SPEC.md` for module layout and prelude exports.
 
+Implementation staging:
+- RSB entry point: `src/bin/cli_ignite.rs` (bootstrap/options!/dispatch!).
+- Command handlers live under `src/ignite/cli/{commands,context}.rs`.
+- Shared helpers consumed via `ignite::prelude::*`.
+- hub dependency excludes `cli-ext`; RSB supplies the full CLI stack.
+
 ## 1. Command Surface (RSB Framework)
 
 | Command | Description | Notes |
@@ -20,6 +26,8 @@ Refer to `docs/ref/rsb/CLI_RSB_USAGE.md` for RSB flag ordering, and `docs/ref/rs
 | `ignite recipients --export` | Dump current recipient set versions | For git automation integration |
 
 ---
+
+- At startup, Ignite will verify that the `age` binary is reachable before delegating to cage, raising a friendly error if installation is missing.
 
 ## 2. Developer Hooks
 

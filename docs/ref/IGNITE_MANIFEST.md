@@ -76,6 +76,7 @@
 ## 5. Validation & Confidence Tests
 
 - Unit tests must ensure manifest files validate against this schema and reject missing required fields.
+- Sanity check for hub re-exports (serde/uuid/rand) lives in `tests/unit/deps.rs`.
 - Integration tests (IG-0207) verify manifests emit during rotations and can be reloaded to reconstruct affected keys.
 - CLI harness (`ignite proof --verify`) will include `ignite manifest --verify <file>` to confirm hashes.
 
