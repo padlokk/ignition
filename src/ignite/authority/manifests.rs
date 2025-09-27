@@ -11,18 +11,6 @@ use sha2::{Digest, Sha256};
 use crate::ignite::error::{IgniteError, Result};
 use super::chain::{KeyFingerprint, KeyType};
 
-
-//corrective
-// pub struct Manifest;
-
-// impl Manifest {
-//     pub fn new() -> Self {
-//         Self
-//     }
-// }
-
-
-
 /// Type of manifest event
 #[derive(Debug, Clone, PartialEq)]
 #[derive(Serialize, Deserialize)]

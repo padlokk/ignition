@@ -1,86 +1,91 @@
-//! Ignite CLI entry point.
+//! Ignite CLI entry point using RSB patterns.
 //!
 //! Command-line interface for Ignition authority chain management.
+//! Uses RSB bootstrap/dispatch pattern per docs/ref/rsb/CLI_RSB_USAGE.md
 
-use clap::{Parser, Subcommand};
-use std::process;
-
+use rsb::prelude::*;
 use ignite::IgniteResult;
 use ignite::ignite::authority::{KeyType, AuthorityKey, KeyMaterial, KeyFormat, KeyMetadata};
 
-#[derive(Parser)]
-#[command(name = "ignite")]
-#[command(about = "Ignition authority chain management")]
-#[command(version)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Create a new authority key
-    Create {
-        /// Type of key to create (skull, master, repo, ignition, distro)
-        #[arg(short, long)]
-        key_type: String,
-
-        /// Description for the key
-        #[arg(short, long)]
-        description: Option<String>,
-
-        /// Parent key fingerprint for authority proof (optional)
-        #[arg(short, long)]
-        parent: Option<String>,
-    },
-    /// List authority keys
-    List {
-        /// Filter by key type
-        #[arg(short, long)]
-        key_type: Option<String>,
-    },
-    /// Show status of authority chain
-    Status,
-    /// Verify a proof or manifest file
-    Verify {
-        /// Path to proof or manifest file
-        file: String,
-    },
-}
-
 fn main() {
-    let cli = Cli::parse();
+    let args = bootstrap!();
+    options!(&args);
 
-    let result = match cli.command {
-        Commands::Create { key_type, description, parent } => {
-            handle_create(&key_type, description.as_deref(), parent.as_deref())
-        }
-        Commands::List { key_type } => {
-            handle_list(key_type.as_deref())
-        }
-        Commands::Status => {
-            handle_status()
-        }
-        Commands::Verify { file } => {
-            handle_verify(&file)
-        }
-    };
+    dispatch!(&args, {
+        "create" => create_command, desc: "Create a new authority key",
+        "list" => list_command, desc: "List authority keys",
+        "ls" => list_command, desc: "Alias for list",
+        "status" => status_command, desc: "Show authority chain status",
+        "verify" => verify_command, desc: "Verify a proof or manifest file"
+    });
+}
 
-    if let Err(e) = result {
-        eprintln!("Error: {}", e);
-        process::exit(1);
+fn create_command(args: Args) -> i32 {
+    match handle_create(&args) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            1
+        }
     }
 }
 
-fn handle_create(key_type: &str, description: Option<&str>, parent_fp_str: Option<&str>) -> IgniteResult<()> {
+fn list_command(args: Args) -> i32 {
+    match handle_list(&args) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            1
+        }
+    }
+}
+
+fn status_command(_args: Args) -> i32 {
+    match handle_status() {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            1
+        }
+    }
+}
+
+fn verify_command(args: Args) -> i32 {
+    match handle_verify(&args) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            1
+        }
+    }
+}
+
+fn handle_create(args: &Args) -> IgniteResult<()> {
     use ignite::ignite::authority::{storage, proofs::{AuthorityClaim, ProofBundle}};
     use ignite::ignite::authority::KeyFingerprint;
     use ed25519_dalek::{SigningKey, SecretKey};
     use hub::random_ext::rand::{rng, Rng};
     use hub::time_ext::chrono::{Utc, Duration};
 
-    let key_type = KeyType::from_str(key_type)?;
+    // Parse arguments: ignite create <key_type> [--description=...] [--parent=...]
+    let key_type_str = args.get_or(1, "");
+    if key_type_str.is_empty() {
+        return Err(ignite::IgniteError::InvalidOperation {
+            operation: "create".to_string(),
+            reason: "Missing key type argument. Usage: ignite create <key_type> [--description=...] [--parent=...]".to_string(),
+        });
+    }
+
+    let key_type = KeyType::from_str(&key_type_str)?;
     println!("Creating {} key...", key_type.description());
+
+    // Get optional description from --description=... flag
+    let description = get_var("opt_description");
+    let description = if description.is_empty() { None } else { Some(description) };
+
+    // Get optional parent fingerprint from --parent=... flag
+    let parent_fp_str = get_var("opt_parent");
+    let parent_fp_str = if parent_fp_str.is_empty() { None } else { Some(parent_fp_str) };
 
     // Generate Ed25519 key material
     let mut random = rng();
@@ -96,7 +101,7 @@ fn handle_create(key_type: &str, description: Option<&str>, parent_fp_str: Optio
     let mut metadata = KeyMetadata::default();
     metadata.creation_time = Utc::now();
     metadata.creator = whoami::username();
-    metadata.description = description.unwrap_or("Created via CLI").to_string();
+    metadata.description = description.unwrap_or_else(|| "Created via CLI".to_string());
 
     // Create authority key
     let authority_key = AuthorityKey::new(key_material, key_type, None, Some(metadata))?;
@@ -111,12 +116,11 @@ fn handle_create(key_type: &str, description: Option<&str>, parent_fp_str: Optio
 
     // Generate and save authority proof if parent specified
     if let Some(parent_fp_str) = parent_fp_str {
-        let parent_fingerprint = KeyFingerprint::from_string(parent_fp_str)?;
+        let parent_fingerprint = KeyFingerprint::from_string(&parent_fp_str)?;
 
         println!("\nGenerating authority proof...");
 
         // Load parent key - need to determine parent's key type from storage
-        // For now, try loading from each key type until we find it
         let parent_key = {
             let mut found_key = None;
             for parent_type in [KeyType::Skull, KeyType::Master, KeyType::Repo, KeyType::Ignition, KeyType::Distro] {
@@ -182,11 +186,25 @@ fn handle_create(key_type: &str, description: Option<&str>, parent_fp_str: Optio
     Ok(())
 }
 
-fn handle_list(key_type_filter: Option<&str>) -> IgniteResult<()> {
+fn handle_list(args: &Args) -> IgniteResult<()> {
     use ignite::ignite::authority::storage;
 
+    // Parse arguments: ignite list [<key_type>] [--role=<key_type>]
+    // Use remaining() to get non-flag arguments
+    let remaining = args.remaining();
+    let key_type_arg = remaining.get(0).map(|s| s.as_str()).unwrap_or("");
+    let role_opt = get_var("opt_role");
+
+    let key_type_filter = if !key_type_arg.is_empty() && !key_type_arg.starts_with("--") {
+        Some(key_type_arg.to_string())
+    } else if !role_opt.is_empty() {
+        Some(role_opt)
+    } else {
+        None
+    };
+
     if let Some(filter) = key_type_filter {
-        let key_type = KeyType::from_str(filter)?;
+        let key_type = KeyType::from_str(&filter)?;
         let keys = storage::list_keys(key_type)?;
         println!("Found {} {} keys:", keys.len(), key_type.description());
         for key_path in keys {
@@ -240,13 +258,22 @@ fn handle_status() -> IgniteResult<()> {
     Ok(())
 }
 
-fn handle_verify(file: &str) -> IgniteResult<()> {
+fn handle_verify(args: &Args) -> IgniteResult<()> {
     use std::path::Path;
     use std::fs;
     use ignite::IgniteError;
     use ignite::ignite::authority::proofs::ProofBundle;
 
-    let path = Path::new(file);
+    // Parse arguments: ignite verify <file>
+    let file = args.get_or(1, "");
+    if file.is_empty() {
+        return Err(IgniteError::InvalidOperation {
+            operation: "verify".to_string(),
+            reason: "Missing file argument. Usage: ignite verify <file>".to_string(),
+        });
+    }
+
+    let path = Path::new(&file);
     if !path.exists() {
         return Err(IgniteError::InvalidOperation {
             operation: "verify_file".to_string(),

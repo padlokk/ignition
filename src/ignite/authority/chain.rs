@@ -10,39 +10,6 @@ use hub::data_ext::serde::{Deserialize, Serialize};
 
 use crate::ignite::error::{IgniteError, Result};
 
-//corrective
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-// pub enum KeyType {
-//     Skull,
-//     Master,
-//     Repo,
-//     Ignition,
-//     Distro,
-// }
-
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// pub struct KeyFingerprint(String);
-
-// impl KeyFingerprint {
-//     pub fn new(value: impl Into<String>) -> Self {
-//         Self(value.into())
-//     }
-
-//     pub fn as_str(&self) -> &str {
-//         &self.0
-//     }
-// }
-
-// #[derive(Debug, Default)]
-// pub struct AuthorityChain;
-
-// impl AuthorityChain {
-//     pub fn new() -> Self {
-//         Self
-//     }
-// }
-
-
 /// Key types in the authority hierarchy (X→M→R→I→D)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize)]

@@ -15,17 +15,22 @@ path = "src/bin/cli_ignite.rs"
 
 [dependencies]
 
-# Core dependencies
+# Core dependencies (not available through hub)
 sha2 = "0.10"
 ed25519-dalek = { version = "2", features = ["std"] }
-serde = { version = "1.0", features = ["derive"] }
-rand = "0.8"
-clap = { version = "4.0", features = ["derive"] }
 whoami = "1.5"
+
+# Serde needed in Cargo.toml for derive macros to work (proc-macros generate ::serde:: paths)
+# We import traits from hub::serde but need the crate itself for macro expansion
+serde = { version = "1.0", features = ["derive"] }
 
 # RSB ecosystem dependencies
 cage = { path = "../cage" }
 rsb = { git = "https://github.com/oodx/rsb", branch = "main" }
+# Hub provides shaped modules via domain groups:
+# - data-ext: serde (traits + shaped re-exports), serde_json, base64
+# - time-ext: chrono, uuid
+# - random-ext: rand
 hub = { git = "https://github.com/oodx/hub.git", features = ["terminal-ext", "data-ext", "time-ext", "random-ext"] }
 serial_test = "3.2.0"
 

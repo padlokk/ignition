@@ -12,17 +12,6 @@ use sha2::{Digest, Sha256};
 use crate::ignite::error::{IgniteError, Result};
 use super::chain::KeyFingerprint;
 
-
-//corrective
-// pub struct ProofEngine;
-
-// impl ProofEngine {
-//     pub fn new() -> Self {
-//         Self
-//     }
-// }
-
-
 /// Authority claim payload (parent asserting control over child)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorityClaim {
