@@ -1,0 +1,136 @@
+================================================================================
+ 🎯 IGNITION TASK BACKLOG
+================================================================================
+Legend: [Story Points] ID — Title (Milestone)
+Updated: 2025-09-28
+
+--------------------------------------------------------------------------------
+ PHASE 0 — Discovery Alignment (5 pts)
+--------------------------------------------------------------------------------
+[2] IG-0001 — Publish IGNITE_CONCEPTS (M0.1)
+  • Write & review canonical concept doc with security + platform leads.
+  • Acceptance: Document merged; review notes addressed; open questions logged.
+
+[3] IG-0002 — Cage Capability Inventory (M0.2)
+  • Map Cage modules leveraged by Ignite; capture gaps and risks, including recipient management APIs.
+  • Acceptance: Inventory summary appended to CONTINUE.md; dependencies filed.
+
+--------------------------------------------------------------------------------
+ PHASE 1 — Authority Core (21 pts)
+--------------------------------------------------------------------------------
+[3] IG-0101 — AuthorityChain Persistence MVP (M1.1)
+  • Implement storage adapter (filesystem vault) + tamper-evident hashing.
+  • Acceptance: Unit tests for add/get/remove; metadata hash verified.
+
+[5] IG-0102 — Metadata Schema & Migration Plan (M1.1)
+  • Define metadata fields, versioning, migration hooks.
+  • Acceptance: Schema doc + tests ensuring backward-compatibility guard.
+
+[4] IG-0103 — Real Signature Engine (M1.2)
+  • Integrate Ed25519 (or decision) for authority/subject proofs.
+  • Acceptance: Validation tests for valid/invalid pairings using canonical JSON payloads; mock removed.
+
+[2] IG-0104 — Proof Expiry Scheduler (M1.2)
+  • Implement proof expiry checks + renewal trigger stubs.
+  • Acceptance: Expired proofs rejected; renewal job flagged TODO.
+
+[4] IG-0105 — Passphrase Policy Engine (M1.3)
+  • Enforce Argon2id KDF, entropy thresholds, reuse prevention.
+  • Acceptance: Policy tests; config file controls strength settings.
+
+[3] IG-0106 — Danger Mode Safeguards (M1.3)
+  • Implement env + CLI confirmations; log override attempts.
+  • Acceptance: CLI prompts verified; automated bypass requires flags.
+
+[3] IG-0107 — Authority Proof Confidence Suite (M1.2)
+  • Build unit/integration tests covering signature tampering, expiry, and replay.
+  • Acceptance: Tests simulate forged signatures, stale proofs, mismatched payloads; engine rejects all.
+
+[3] IG-0108 — RSB Module Compliance (M1.1)
+  • Align module layout with `MODULE_SPEC`/`PRELUDE_POLICY`; isolate adapters.
+  • Acceptance: Module tree reorganized; preludes document exports; hub namespace usage audited.
+
+--------------------------------------------------------------------------------
+ PHASE 2 — Ignition Operations (26 pts)
+--------------------------------------------------------------------------------
+[5] IG-0201 — Key Generation Flow (M2.1)
+  • Wire `AuthorityAgeKeyGenerator` to storage + audit logging.
+  • Persist recipient set versions alongside new keys.
+  • Acceptance: Integration test creates X→M→R chain; logs capture recipient hashes.
+
+[4] IG-0202 — Ignition Wrap & Passphrase UX (M2.1)
+  • Implement passphrase prompts/env handling; secure storage of wrapped keys.
+  • Acceptance: I/D key creation flows pass UX review; recipient public materials exported for Cage.
+
+[5] IG-0203 — Lineage Recording & Proof Emission (M2.1)
+  • Persist authority proofs + subject proofs in vault.
+  • Acceptance: Verifier CLI confirms lineage and recipient membership for each key.
+
+[4] IG-0204 — Rotation Cascade Engine (M2.2)
+  • Invalidate descendants on parent rotation; generate revocation records.
+  • Acceptance: Tests show child keys unusable post-rotation; recipient sets rebuilt; affected-keys manifest generated.
+
+[4] IG-0205 — Tombstone Registry (M2.2)
+  • Prevent re-use of revoked fingerprints; add audit log entries.
+  • Acceptance: Attempt to reinstate revoked key fails with specific error.
+
+[4] IG-0206 — Status & Discovery CLI (M2.3)
+  • Implement `ignite ls`, `ignite status` command handlers.
+  • Acceptance: CLI outputs include expiry warnings and recipient set summaries.
+
+[3] IG-0207 — Affected-Key Manifest Schema (M2.2)
+  • Define manifest JSON (fingerprint, md5, scope, issued_at) and hashing rules.
+  • Acceptance: Rotation writes manifest; validation job verifies digest integrity.
+
+--------------------------------------------------------------------------------
+ PHASE 3 — CLI & Integration (18 pts)
+--------------------------------------------------------------------------------
+[3] IG-0301 — RSB Bootstrap & Dispatch (M3.1)
+  • Create `src/bin/cli_ignite.rs` with `bootstrap!` + `dispatch!`.
+  • Acceptance: `ignite help` / `ignite inspect` functional.
+
+[3] IG-0302 — Command Handler Wiring (M3.1)
+  • Route create/rotate/revoke/status commands to authority ops layer.
+  • Acceptance: Smoke tests cover happy/error paths.
+
+[4] IG-0303 — Cage Bridge Validation (M3.2)
+  • Ensure CRUD operations respect authority checks and recipient constraints.
+  • Acceptance: Integration tests pass with sample repo fixtures.
+
+[4] IG-0304 — Audit Correlation Enhancements (M3.2)
+  • Include key fingerprints + recipient set hashes + operation IDs in audit records.
+  • Acceptance: Audit logs correlate operations across Cage & Ignite.
+
+[3] IG-0306 — CLI Confidence Harness (M3.1)
+  • Add smoke tests (`cargo test cli_smoke`) covering admin/dev command flows.
+  • Acceptance: Harness exercises create/rotate/revoke/status with mock data and verifies proofs/manifest output.
+
+[3] IG-0307 — Test Ceremony Implementation (M3.2)
+  • Implement RSB test organization + ceremony scripts per TEST_ORGANIZATION standard.
+  • Acceptance: tests/ directory matches structure; `tests/sh/ceremony.sh` drives suites; `test.sh` orchestrates.
+
+[4] IG-0305 — Automation Channel Templates (M3.3)
+  • Provide CI examples + secret management shim for env passphrases and recipient distribution.
+  • Acceptance: Example pipeline runs in dry-run; docs updated.
+
+--------------------------------------------------------------------------------
+ PHASE 4 — Hardening & Release (14 pts)
+--------------------------------------------------------------------------------
+[5] IG-0401 — Security Drill Suite (M4.1)
+  • Run tabletop & simulated breach scenarios; capture action items.
+  • Acceptance: Report archived; follow-ups logged in TASKS backlog.
+
+[4] IG-0402 — Operator Documentation Pack (M4.2)
+  • Produce runbooks, troubleshooting guide, recovery checklist.
+  • Acceptance: Ops team review sign-off recorded.
+
+[5] IG-0403 — Release Candidate Cut (M4.3)
+  • Tag v0.1.0, run full test matrix, prep handoff checklist.
+  • Acceptance: Release artifact published; CONTINUE.md updated.
+
+--------------------------------------------------------------------------------
+ BACKLOG MAINTENANCE
+--------------------------------------------------------------------------------
+• Update CONTINUE.md at session end with progress and blockers.
+• Adjust story points as implementation details solidify.
+• Reference ROADMAP milestones when editing or adding tasks.
