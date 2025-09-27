@@ -7,6 +7,8 @@ repository = "https://github.com/padlokk/ignition"
 license = "AGPL-3.0"            
 publish = false  
 
+
+
 [[bin]]
 name = "ignite"
 path = "src/bin/cli_ignite.rs"
