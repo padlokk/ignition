@@ -1,0 +1,100 @@
+# Cage Sprint: META_PROCESS v2 Implementation + BUG Slate
+
+**Sprint Duration**: Current (started 2025-09-27)
+**Sprint Goal**: Finish META_PROCESS v2 rollout, then clear BUG-01…BUG-05
+**Total Story Points**: META_PROCESS (est. 8 pts) + BUG slate (19 pts) = 27 pts
+
+================================================================================
+## ACTIVE SPRINT TASKS
+================================================================================
+
+### META_PROCESS v2 Implementation (8 pts estimated)
+Status: IN PROGRESS
+
+- [x] Phase 1: Project Assessment & Discovery (2 pts)
+  - [x] Document inventory with China
+  - [x] Agent analysis inventory
+  - [x] Current state analysis
+
+- [x] Phase 2: Structure Design & Organization (2 pts)
+  - [x] Create directory structure
+  - [x] Migrate documents
+  - [x] Consolidate analysis files
+
+- [~] Phase 3: Core Document Creation (2 pts)
+  - [x] START.txt
+  - [x] PROCESS.txt
+  - [x] QUICK_REF.txt
+  - [x] CONTINUE.md
+  - [ ] SPRINT.txt (this file – final review pending)
+  - [ ] DONE.txt
+
+- [ ] Phase 4: Agent Analysis Consolidation (1 pt)
+  - [ ] Deploy China for wisdom consolidation
+  - [ ] Deploy Tina for quality analysis
+  - [ ] Extract technical debt
+  - [ ] Integrate MVP triage
+
+- [ ] Phase 5: Automation & Validation (1 pt)
+  - [ ] Create bin/validate-docs.sh
+  - [ ] Define session handoff requirements
+  - [ ] Implement multi-speed onboarding
+
+- [ ] Phase 6: Testing & Refinement (0.5 pts)
+  - [ ] Test with fresh agent
+  - [ ] Validate all workflow paths
+  - [ ] Refine documentation
+
+- [ ] Merge admin/meta-process to main (0.5 pts)
+
+================================================================================
+## NEXT WORK AFTER META_PROCESS
+================================================================================
+
+### BUG Slate (Blocking Production)
+
+- **BUG-01: Preserve Original Extensions** (3 pts)
+  - Path: `src/cage/lifecycle/crud_manager.rs`
+  - Goal: Append `.cage` without stripping original suffix; adjust unlock to reverse safely.
+
+- **BUG-02: Recursive Operations Ignore Subdirectories** (5 pts)
+  - Path: traversal helpers in `crud_manager.rs`
+  - Goal: Implement shared recursive traversal for lock/unlock/status/verify.
+
+- **BUG-03: Pattern Filters Treat Globs as Literal Substrings** (3 pts)
+  - Path: same traversal helpers
+  - Goal: Replace substring matcher with glob support (e.g. `globset`).
+
+- **BUG-04: Unlock Options Ignored** (3 pts)
+  - Path: `unlock_single_file`
+  - Goal: Honour `preserve_encrypted` and `selective` options; update reporting accordingly.
+
+- **BUG-05: Proxy Command Still Uses Expect Script** (5 pts)
+  - Path: `src/bin/cli_age.rs` (proxy handler)
+  - Goal: Reuse PTY automator; remove `expect`; keep behaviour cross-platform friendly.
+
+### Follow-up Work
+- **TEST-01**: Align CLI suites with current binary (3 pts).
+- **TEST-02**: Regression coverage for BUG-01..04 (3 pts).
+- Resume CAGE-04+ feature work once bug slate and tests are complete.
+
+================================================================================
+## SPRINT NOTES
+================================================================================
+
+**Key Decisions**:
+- Complete META_PROCESS v2 before touching feature work.
+- BUG-01 through BUG-05 are highest priority production fixes once process work is done.
+- Queue TEST-01/TEST-02 immediately after the bug slate.
+
+**Blockers**:
+- None currently.
+
+**Team Velocity**:
+- Solo development with agent assistance.
+- Estimated 10–15 story points per week.
+
+================================================================================
+
+Last Updated: 2025-09-27
+Next Review: After META_PROCESS v2 completion
