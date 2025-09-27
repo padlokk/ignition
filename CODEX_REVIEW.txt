@@ -1,0 +1,60 @@
+# Codex Session Review – Ignite Scaffold (2025-09-27)
+
+## Mission Snapshot
+- Repo: `prods/padlokk/ignition`
+- Working branch: `main`
+- Scope: Build RSB-compliant scaffold for the new Ignite authority CLI and document module/test expectations.
+
+## Accomplished
+1. **Project Metadata**
+   - Renamed crate to `ignite`, set description/repo metadata.
+   - Dependency graph trimmed to essentials (chrono, sha2, ed25519-dalek, hub’s re-exports). No direct serde/rand/base64.
+
+2. **Module Skeleton (per MODULE_SPEC)**
+   - `src/lib.rs` exposes `IgniteResult` + `ignite::IgniteError`.
+   - `src/ignite/` orchestrator with placeholder submodules:
+     - `utils.rs`, `guards.rs`, `macros.rs`, `prelude.rs`, `prelude_dev.rs`.
+     - `authority/{mod.rs, chain.rs, proofs.rs, manifests.rs, storage/*}`.
+     - `cli/{mod.rs, commands.rs, context.rs}`.
+     - `security/{mod.rs, policy.rs}`.
+     - `logging/mod.rs`.
+   - Guard helper `ensure_age_available` in `ignite::guards` (discussed but not yet wired).
+
+3. **Tests**
+   - `tests/unit/deps.rs`: sanity check that hub re-exports `serde_json`, `uuid`, and `rand`.
+
+4. **Docs**
+   - `docs/ref/IGNITE_CONCEPTS.md`: added module layout overview.
+   - `docs/ref/IGNITE_CLI.md`: documented RSB entry point, module locations, and exclusion of hub `cli-ext`.
+   - `docs/ref/IGNITE_MANIFEST.md`: notes the hub dependency sanity test.
+
+5. **Backlog/Roadmap**
+   - Roadmap Milestone 2.1 includes age binary guard.
+   - Backlog item `IG-0208 — Age Binary Guard` added.
+
+## Outstanding Tasks
+- Move real logic from `code_ref/` into the new modules (authority chain, manifests, proofs, storage).
+- Implement RSB CLI entry at `src/bin/cli_ignite.rs` and connect `ignite::cli` handlers.
+- Flesh out storage adapters (XDG + local) and integrate dependency guards.
+- Build manifest/proof tests per specs.
+- Remove the old `code_ref` references once migrated.
+
+
+## Padlock Context
+- Ignite is one pillar of Padlock’s security stack (built alongside Cage).
+- Purpose: manage X→M→R→I→D authority lifecycles and expose automation-friendly CLI hooks.
+- Cage handles PTY automation + file encryption; Ignite focuses on key hierarchy, manifests, and validation so Padlock repos can grant/revoke access safely.
+- Legacy docs referenced: `docs/ref/padlock/` (FEATURES, PRD, CONCEPTS) for larger project context.
+- UAT_AUTHORITY_CHAIN_001 judged "CONDITIONAL PASS" but should be treated as **fail** until storage, nonce generation, CLI commands, and tests exist.
+
+## Key References
+- `docs/ref/IGNITE_CONCEPTS.md` – overall mental model + module layout.
+- `docs/ref/IGNITE_MANIFEST.md` – manifest schema and test requirements.
+- `docs/ref/IGNITE_PROOFS.md` – canonical payload and rotation workflow.
+- `docs/ref/IGNITE_CLI.md` – CLI architecture and harness.
+- `docs/ref/rsb/MODULE_SPEC.md`, `PRELUDE_POLICY.md`, `TEST_ORGANIZATION.md` – scaffolding standards.
+
+## Notes for Next Agent
+- Actual logic still lives in `code_ref/`; plan to migrate incrementally. Keep module boundaries per spec (orchestrator thin, helpers/test adapters isolated).
+- When wiring the CLI, rely on RSB macros (bootstrap/options!/dispatch!) and hub for third-party deps (serde_json via hub::data_ext, etc.).
+- Age dependency guard is planned but not yet used—tie it into CLI startup soon.

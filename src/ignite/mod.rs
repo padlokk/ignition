@@ -6,6 +6,6 @@
 pub mod error;
 pub mod utils;
 pub mod guards;
-pub mod prelude;
+pub mod authority;
 
-pub use error::IgniteError;
+pub use error::{IgniteError, Result};

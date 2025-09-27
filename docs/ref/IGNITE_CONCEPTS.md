@@ -1,18 +1,22 @@
 # 🔥 Ignition Authority Concepts
 
-**Document Purpose**: Provide a shared mental model for the authority chain that powers Ignite, including required validations, key lifecycles, and integration patterns with Cage/age. This is the canonical reference to align engineering, product, and security stakeholders before implementation.
+**Document Purpose**: Provide a shared mental model for the authority chain that powers Ignite, including required validations, key lifecycles, and integration patterns with **Cage** (Padlock's local Age automation library). This is the canonical reference to align engineering, product, and security stakeholders before implementation.
+
+**Important**: Ignite exclusively uses the **local `cage` crate** (path dependency), NOT the external `rage` crate. All Age encryption operations route through Cage's PTY automation and audit-logged APIs.
 
 ---
 
 ## 1. Core Metaphor & Mission
 
-Ignition extends Cage by turning the existing padlock keys into a **living authority chain**:
+Ignition extends **Cage** by turning the existing padlock keys into a **living authority chain**:
 
 ```
 X (Skull) ⇒ M (Master) ⇒ R (Repo) ⇒ I (Ignition) ⇒ D (Distro)
 ```
 
-Each link is either a direct key (M, R) or an ignition key (X, I, D – passphrase wrapped). Authority flows **downward** to confer control; accountability flows **upward** to prove provenance. Ignite’s job is to automate the safe creation, validation, rotation, and use of these links without breaking Cage’s security guarantees.
+Each link is either a direct key (M, R) or an ignition key (X, I, D – passphrase wrapped). Authority flows **downward** to confer control; accountability flows **upward** to prove provenance. Ignite's job is to automate the safe creation, validation, rotation, and use of these links without breaking Cage's security guarantees.
+
+**Architecture Note**: Ignite depends on `cage = { path = "../cage" }` as a local library. Cage provides Age automation with PTY support, passphrase handling, and audit logging—Ignite never calls the external `rage` binary or crate directly.
 
 ---
 
@@ -49,10 +53,13 @@ Validation primitives:
 
 ### 4.1 Creation
 1. Parent authority validates that the requested child type is permitted.
-2. Generate Age key material via Cage automation (TTY-safe, audit logged).
+2. Generate Age key material via **Cage** automation (TTY-safe, audit logged).
+   - Cage handles all interaction with Age format keypairs
+   - No direct calls to `rage` binary or crate
 3. For ignition keys (X/I/D):
    - Derive passphrase (interactive prompt or env var such as `PADLOCK_<FP>_PASSPHRASE`).
    - Wrap key material using a strong KDF and store encrypted payload with metadata.
+   - Cage's passphrase-wrapping facilities handle the encryption
 4. Emit authority proof tying parent fingerprint to child fingerprint.
 5. Persist metadata (creation timestamp, rotation window, owner, purpose, usage count).
 
