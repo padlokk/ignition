@@ -3,9 +3,10 @@
 //! Command-line interface for Ignition authority chain management.
 //! Uses RSB bootstrap/dispatch pattern per docs/ref/rsb/CLI_RSB_USAGE.md
 
-use rsb::prelude::*;
+use ignite::ignite::authority::{AuthorityKey, KeyFormat, KeyMaterial, KeyMetadata, KeyType};
+use ignite::ignite::security::policy::PolicyEngine;
 use ignite::IgniteResult;
-use ignite::ignite::authority::{KeyType, AuthorityKey, KeyMaterial, KeyFormat, KeyMetadata};
+use rsb::prelude::*;
 
 fn main() {
     let args = bootstrap!();
@@ -61,11 +62,14 @@ fn verify_command(args: Args) -> i32 {
 }
 
 fn handle_create(args: &Args) -> IgniteResult<()> {
-    use ignite::ignite::authority::{storage, proofs::{AuthorityClaim, ProofBundle}};
-    use ignite::ignite::authority::KeyFingerprint;
-    use ed25519_dalek::{SigningKey, SecretKey};
+    use ed25519_dalek::{SecretKey, SigningKey};
     use hub::random_ext::rand::{rng, Rng};
-    use hub::time_ext::chrono::{Utc, Duration};
+    use hub::time_ext::chrono::{Duration, Utc};
+    use ignite::ignite::authority::KeyFingerprint;
+    use ignite::ignite::authority::{
+        proofs::{AuthorityClaim, ProofBundle},
+        storage,
+    };
 
     // Parse arguments: ignite create <key_type> [--description=...] [--parent=...]
     let key_type_str = args.get_or(1, "");
@@ -77,15 +81,24 @@ fn handle_create(args: &Args) -> IgniteResult<()> {
     }
 
     let key_type = KeyType::from_str(&key_type_str)?;
+    let policy_engine = PolicyEngine::with_defaults();
     println!("Creating {} key...", key_type.description());
 
     // Get optional description from --description=... flag
     let description = get_var("opt_description");
-    let description = if description.is_empty() { None } else { Some(description) };
+    let description = if description.is_empty() {
+        None
+    } else {
+        Some(description)
+    };
 
     // Get optional parent fingerprint from --parent=... flag
     let parent_fp_str = get_var("opt_parent");
-    let parent_fp_str = if parent_fp_str.is_empty() { None } else { Some(parent_fp_str) };
+    let parent_fp_str = if parent_fp_str.is_empty() {
+        None
+    } else {
+        Some(parent_fp_str)
+    };
 
     // Generate Ed25519 key material
     let mut random = rng();
@@ -104,7 +117,11 @@ fn handle_create(args: &Args) -> IgniteResult<()> {
     metadata.description = description.unwrap_or_else(|| "Created via CLI".to_string());
 
     // Create authority key
-    let authority_key = AuthorityKey::new(key_material, key_type, None, Some(metadata))?;
+    let mut authority_key = AuthorityKey::new(key_material, key_type, None, Some(metadata))?;
+
+    policy_engine.apply_key_defaults(&mut authority_key)?;
+    policy_engine.validate_key(&authority_key)?;
+
     let child_fingerprint = authority_key.fingerprint().clone();
 
     // Save to storage
@@ -123,45 +140,63 @@ fn handle_create(args: &Args) -> IgniteResult<()> {
         // Load parent key - need to determine parent's key type from storage
         let parent_key = {
             let mut found_key = None;
-            for parent_type in [KeyType::Skull, KeyType::Master, KeyType::Repo, KeyType::Ignition, KeyType::Distro] {
+            for parent_type in [
+                KeyType::Skull,
+                KeyType::Master,
+                KeyType::Repo,
+                KeyType::Ignition,
+                KeyType::Distro,
+            ] {
                 if let Ok(key) = storage::load_key(parent_type, &parent_fingerprint) {
                     found_key = Some(key);
                     break;
                 }
             }
             found_key.ok_or_else(|| ignite::IgniteError::InvalidKey {
-                reason: format!("Parent key not found with fingerprint: {}", parent_fingerprint),
+                reason: format!(
+                    "Parent key not found with fingerprint: {}",
+                    parent_fingerprint
+                ),
             })?
         };
+
+        policy_engine.validate_key(&parent_key)?;
 
         // Validate parent can control child
         if !parent_key.can_control(key_type) {
             return Err(ignite::IgniteError::InvalidOperation {
                 operation: "create_with_authority".to_string(),
-                reason: format!("{} cannot control {}", parent_key.key_type().description(), key_type.description()),
+                reason: format!(
+                    "{} cannot control {}",
+                    parent_key.key_type().description(),
+                    key_type.description()
+                ),
             });
         }
 
         // Extract parent's signing key
         let parent_signing_key = {
-            let private_key_bytes = parent_key.key_material().private_key()
-                .ok_or_else(|| ignite::IgniteError::InvalidKey {
+            let private_key_bytes = parent_key.key_material().private_key().ok_or_else(|| {
+                ignite::IgniteError::InvalidKey {
                     reason: "Parent key has no private key material".to_string(),
-                })?;
+                }
+            })?;
 
-            SigningKey::from_bytes(
-                private_key_bytes.try_into()
-                    .map_err(|_| ignite::IgniteError::InvalidKey {
-                        reason: "Invalid parent key length".to_string(),
-                    })?
-            )
+            SigningKey::from_bytes(private_key_bytes.try_into().map_err(|_| {
+                ignite::IgniteError::InvalidKey {
+                    reason: "Invalid parent key length".to_string(),
+                }
+            })?)
         };
 
         // Create and sign authority claim
         let claim = AuthorityClaim::new(
             parent_fingerprint.clone(),
             child_fingerprint.clone(),
-            format!("Authority claim for {} key creation", key_type.description())
+            format!(
+                "Authority claim for {} key creation",
+                key_type.description()
+            ),
         );
 
         let expires_at = Utc::now() + Duration::hours(24);
@@ -173,11 +208,15 @@ fn handle_create(args: &Args) -> IgniteResult<()> {
 
         println!("✓ Authority proof generated and saved");
         println!("  Proof saved to: {}", proof_path.display());
-        println!("  Expires at: {}", expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!(
+            "  Expires at: {}",
+            expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+        );
 
         // Update parent key to track this child relationship
         let mut parent_key_updated = parent_key;
         parent_key_updated.add_child(child_fingerprint)?;
+        policy_engine.validate_key(&parent_key_updated)?;
         storage::save_key(&parent_key_updated)?;
 
         println!("✓ Parent-child relationship recorded");
@@ -218,7 +257,13 @@ fn handle_list(args: &Args) -> IgniteResult<()> {
         }
     } else {
         // List all key types
-        for key_type in [KeyType::Skull, KeyType::Master, KeyType::Repo, KeyType::Ignition, KeyType::Distro] {
+        for key_type in [
+            KeyType::Skull,
+            KeyType::Master,
+            KeyType::Repo,
+            KeyType::Ignition,
+            KeyType::Distro,
+        ] {
             let keys = storage::list_keys(key_type)?;
             if !keys.is_empty() {
                 println!("{} keys ({})", key_type.description(), keys.len());
@@ -233,7 +278,7 @@ fn handle_list(args: &Args) -> IgniteResult<()> {
 }
 
 fn handle_status() -> IgniteResult<()> {
-    use ignite::ignite::{utils, authority::storage};
+    use ignite::ignite::{authority::storage, utils};
 
     println!("Ignition Authority Chain Status");
     println!("==============================");
@@ -243,14 +288,22 @@ fn handle_status() -> IgniteResult<()> {
     // Key counts by type
     println!("Authority Keys:");
     let mut total_keys = 0;
-    for key_type in [KeyType::Skull, KeyType::Master, KeyType::Repo, KeyType::Ignition, KeyType::Distro] {
+    for key_type in [
+        KeyType::Skull,
+        KeyType::Master,
+        KeyType::Repo,
+        KeyType::Ignition,
+        KeyType::Distro,
+    ] {
         let keys = storage::list_keys(key_type)?;
         let count = keys.len();
         total_keys += count;
-        println!("  {} {}: {}",
-                 if count > 0 { "✓" } else { "✗" },
-                 key_type.description(),
-                 count);
+        println!(
+            "  {} {}: {}",
+            if count > 0 { "✓" } else { "✗" },
+            key_type.description(),
+            count
+        );
     }
 
     println!();
@@ -265,10 +318,10 @@ fn handle_status() -> IgniteResult<()> {
 }
 
 fn handle_verify(args: &Args) -> IgniteResult<()> {
-    use std::path::Path;
-    use std::fs;
-    use ignite::IgniteError;
     use ignite::ignite::authority::proofs::ProofBundle;
+    use ignite::IgniteError;
+    use std::fs;
+    use std::path::Path;
 
     // Parse arguments: ignite verify <file>
     let file = args.get_or(1, "");
@@ -290,16 +343,18 @@ fn handle_verify(args: &Args) -> IgniteResult<()> {
     println!("Verifying file: {}", file);
 
     // Try to read the file
-    let content = fs::read_to_string(path)
-        .map_err(|e| IgniteError::InvalidOperation {
-            operation: "read_file".to_string(),
-            reason: format!("Failed to read file '{}': {}", file, e),
-        })?;
+    let content = fs::read_to_string(path).map_err(|e| IgniteError::InvalidOperation {
+        operation: "read_file".to_string(),
+        reason: format!("Failed to read file '{}': {}", file, e),
+    })?;
 
     // Try to parse as ProofBundle first
     if let Ok(proof) = hub::data_ext::serde_json::from_str::<ProofBundle>(&content) {
         println!("✓ File is a valid proof bundle");
-        println!("  Expires at: {}", proof.expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!(
+            "  Expires at: {}",
+            proof.expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+        );
         println!("  Digest: {}", proof.digest);
 
         // Verify the proof
@@ -308,12 +363,18 @@ fn handle_verify(args: &Args) -> IgniteResult<()> {
                 println!("✓ Proof signature verification passed");
 
                 // Try to parse the payload to show more details
-                if let Ok(claim) = hub::data_ext::serde_json::from_str::<ignite::ignite::authority::proofs::AuthorityClaim>(&proof.payload_json) {
+                if let Ok(claim) = hub::data_ext::serde_json::from_str::<
+                    ignite::ignite::authority::proofs::AuthorityClaim,
+                >(&proof.payload_json)
+                {
                     println!("\nAuthority Claim Details:");
                     println!("  Parent: {}", claim.parent_fp);
                     println!("  Child: {}", claim.child_fp);
                     println!("  Purpose: {}", claim.purpose);
-                    println!("  Issued at: {}", claim.issued_at.format("%Y-%m-%d %H:%M:%S UTC"));
+                    println!(
+                        "  Issued at: {}",
+                        claim.issued_at.format("%Y-%m-%d %H:%M:%S UTC")
+                    );
                 }
 
                 return Ok(());
@@ -328,11 +389,17 @@ fn handle_verify(args: &Args) -> IgniteResult<()> {
     }
 
     // Try to parse as manifest
-    if let Ok(manifest) = hub::data_ext::serde_json::from_str::<ignite::ignite::authority::manifests::AffectedKeyManifest>(&content) {
+    if let Ok(manifest) = hub::data_ext::serde_json::from_str::<
+        ignite::ignite::authority::manifests::AffectedKeyManifest,
+    >(&content)
+    {
         println!("✓ File is a valid manifest");
         println!("  Schema version: {}", manifest.schema_version);
         println!("  Event type: {:?}", manifest.event.event_type);
-        println!("  Parent fingerprint: {}", manifest.event.parent_fingerprint);
+        println!(
+            "  Parent fingerprint: {}",
+            manifest.event.parent_fingerprint
+        );
         println!("  Children count: {}", manifest.children.len());
 
         // Verify digest - this must succeed for verification to pass

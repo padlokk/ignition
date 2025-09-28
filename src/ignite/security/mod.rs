@@ -6,8 +6,8 @@
 //! - Dual-control requirements for sensitive keys
 //! - Security audit integration
 //!
-//! See policy.rs for detailed policy implementation (currently stub).
+//! See `policy` module for the modular policy engine implementation.
 
 pub mod policy;
 
-pub use policy::PassphrasePolicy;
+pub use policy::{ExpirationPolicy, PassphraseStrengthPolicy, Policy, PolicyEngine};
