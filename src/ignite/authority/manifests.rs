@@ -4,16 +4,15 @@
 //! Manifests record descendants invalidated by authority operations to enable
 //! downstream automation.
 
-use hub::time_ext::chrono::{DateTime, Utc};
 use hub::data_ext::serde::{Deserialize, Serialize};
+use hub::time_ext::chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 
-use crate::ignite::error::{IgniteError, Result};
 use super::chain::{KeyFingerprint, KeyType};
+use crate::ignite::error::{IgniteError, Result};
 
 /// Type of manifest event
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "String")]
 pub enum ManifestEventType {
     Rotation,
@@ -213,16 +212,19 @@ impl AffectedKeyManifest {
                             .map(|p| format!(r#""{}""#, p))
                             .collect::<Vec<_>>()
                             .join(",");
-                        format!(
-                            r#","scope":{{"env":"{}","paths":[{}]}}"#,
-                            s.env, paths
-                        )
+                        format!(r#","scope":{{"env":"{}","paths":[{}]}}"#, s.env, paths)
                     })
                     .unwrap_or_default();
 
                 format!(
                     r#"{{"fingerprint":"{}","issued_at":"{}","role":"{}","status":"{}"{}{}{}}}"#,
-                    c.fingerprint, c.issued_at.to_rfc3339(), c.role, c.status, ciphertext, scope, revoked_at
+                    c.fingerprint,
+                    c.issued_at.to_rfc3339(),
+                    c.role,
+                    c.status,
+                    ciphertext,
+                    scope,
+                    revoked_at
                 )
             })
             .collect();
@@ -269,12 +271,13 @@ impl AffectedKeyManifest {
 
         // Insert digest into canonical JSON
         // Find the position after "children":[...] and before "event":
-        let insert_pos = canonical
-            .find(",\"event\":")
-            .ok_or_else(|| IgniteError::InvalidOperation {
-                operation: "insert_digest".to_string(),
-                reason: "Could not find event field in JSON".to_string(),
-            })?;
+        let insert_pos =
+            canonical
+                .find(",\"event\":")
+                .ok_or_else(|| IgniteError::InvalidOperation {
+                    operation: "insert_digest".to_string(),
+                    reason: "Could not find event field in JSON".to_string(),
+                })?;
 
         let mut result = String::with_capacity(canonical.len() + digest_json.len() + 20);
         result.push_str(&canonical[..insert_pos]);
@@ -290,10 +293,13 @@ impl AffectedKeyManifest {
         let canonical = self.to_canonical_json()?;
         let computed = ManifestDigest::compute(&canonical);
 
-        let stored = self.digest.as_ref().ok_or_else(|| IgniteError::InvalidOperation {
-            operation: "verify_manifest_digest".to_string(),
-            reason: "No digest present in manifest".to_string(),
-        })?;
+        let stored = self
+            .digest
+            .as_ref()
+            .ok_or_else(|| IgniteError::InvalidOperation {
+                operation: "verify_manifest_digest".to_string(),
+                reason: "No digest present in manifest".to_string(),
+            })?;
 
         if computed.value != stored.value {
             return Err(IgniteError::CryptoError {
@@ -370,12 +376,7 @@ mod tests {
         let child_fp = create_test_fingerprint("child");
         let issued_at = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
 
-        let child = ManifestChild::new(
-            child_fp.clone(),
-            KeyType::Ignition,
-            "active",
-            issued_at,
-        );
+        let child = ManifestChild::new(child_fp.clone(), KeyType::Ignition, "active", issued_at);
 
         assert_eq!(child.fingerprint, child_fp);
         assert_eq!(child.role, KeyType::Ignition);
@@ -391,7 +392,8 @@ mod tests {
         let child_fp = create_test_fingerprint("child");
         let issued_at = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
         let revoked_at = Utc.with_ymd_and_hms(2024, 1, 2, 12, 0, 0).unwrap();
-        let scope = ManifestScope::new(vec!["path1".to_string(), "path2".to_string()], "production");
+        let scope =
+            ManifestScope::new(vec!["path1".to_string(), "path2".to_string()], "production");
 
         let child = ManifestChild::new(child_fp, KeyType::Ignition, "revoked", issued_at)
             .with_revocation(revoked_at)
@@ -554,11 +556,7 @@ mod tests {
     #[test]
     fn test_manifest_filename_generation() {
         let parent_fp = create_test_fingerprint("parent");
-        let mut event = ManifestEvent::new(
-            ManifestEventType::Rotation,
-            parent_fp,
-            "Test rotation",
-        );
+        let mut event = ManifestEvent::new(ManifestEventType::Rotation, parent_fp, "Test rotation");
 
         // Set a specific timestamp for predictable filename
         event.initiated_at = Utc.with_ymd_and_hms(2024, 1, 15, 14, 30, 45).unwrap();

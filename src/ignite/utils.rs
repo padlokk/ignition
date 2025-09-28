@@ -4,7 +4,9 @@ use std::env;
 use std::path::PathBuf;
 
 fn home_dir() -> PathBuf {
-    env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("./"))
+    env::var("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("./"))
 }
 
 /// Resolve the writable data root for ignite, following XDG+ precedence.

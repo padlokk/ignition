@@ -4,15 +4,15 @@
 //! submodules; adapters/integrations will be added as functionality lands.
 
 pub mod error;
-pub mod utils;
 pub mod guards;
 pub mod macros;
 pub mod prelude;
 pub mod prelude_dev;
+pub mod utils;
 
 pub mod authority;
 pub mod cli;
-pub mod security;
 pub mod logging;
+pub mod security;
 
 pub use error::{IgniteError, Result};

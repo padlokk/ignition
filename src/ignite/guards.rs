@@ -7,13 +7,12 @@ use crate::IgniteResult;
 
 /// Ensure the minimum external dependencies are on the PATH before we defer to cage.
 pub fn ensure_age_available() -> IgniteResult<()> {
-    let output = Command::new("age")
-        .arg("--version")
-        .output()
-        .map_err(|e| IgniteError::MissingDependency {
+    let output = Command::new("age").arg("--version").output().map_err(|e| {
+        IgniteError::MissingDependency {
             binary: "age",
             context: format!("failed to spawn `age`: {}", e),
-        })?;
+        }
+    })?;
 
     if output.status.success() {
         return Ok(());

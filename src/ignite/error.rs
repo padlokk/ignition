@@ -14,10 +14,7 @@ pub enum IgniteError {
     /// Placeholder for yet-to-be-defined errors.
     NotReady(&'static str),
     /// Invalid operation or authority relationship
-    InvalidOperation {
-        operation: String,
-        reason: String,
-    },
+    InvalidOperation { operation: String, reason: String },
     /// I/O error during file operations
     IoError {
         operation: String,
@@ -25,14 +22,9 @@ pub enum IgniteError {
         source: std::io::Error,
     },
     /// Cryptographic operation failed
-    CryptoError {
-        operation: String,
-        reason: String,
-    },
+    CryptoError { operation: String, reason: String },
     /// Key validation failed
-    InvalidKey {
-        reason: String,
-    },
+    InvalidKey { reason: String },
 }
 
 impl Display for IgniteError {
@@ -45,8 +37,16 @@ impl Display for IgniteError {
             IgniteError::InvalidOperation { operation, reason } => {
                 write!(f, "invalid operation '{}': {}", operation, reason)
             }
-            IgniteError::IoError { operation, path, source } => {
-                write!(f, "I/O error during '{}' on {:?}: {}", operation, path, source)
+            IgniteError::IoError {
+                operation,
+                path,
+                source,
+            } => {
+                write!(
+                    f,
+                    "I/O error during '{}' on {:?}: {}",
+                    operation, path, source
+                )
             }
             IgniteError::CryptoError { operation, reason } => {
                 write!(f, "crypto error in '{}': {}", operation, reason)

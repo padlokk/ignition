@@ -4,10 +4,10 @@
 //! manifests, and key lifecycle management.
 
 pub mod chain;
-pub mod proofs;
 pub mod manifests;
+pub mod proofs;
 pub mod storage;
 
-pub use chain::{KeyType, KeyFingerprint, KeyMaterial, KeyFormat, AuthorityKey, KeyMetadata};
-pub use proofs::{AuthorityClaim, SubjectReceipt, ProofBundle};
-pub use manifests::{AffectedKeyManifest, ManifestEvent, ManifestChild};
+pub use chain::{AuthorityKey, KeyFingerprint, KeyFormat, KeyMaterial, KeyMetadata, KeyType};
+pub use manifests::{AffectedKeyManifest, ManifestChild, ManifestEvent};
+pub use proofs::{AuthorityClaim, ProofBundle, SubjectReceipt};

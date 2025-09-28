@@ -3,15 +3,15 @@
 //! Handles atomic write operations and XDG-aware vault management for keys,
 //! proofs, and manifests.
 
-use std::path::{Path, PathBuf};
-use std::fs;
 use hub::data_ext::serde_json;
+use std::fs;
+use std::path::{Path, PathBuf};
 
+use super::chain::{AuthorityKey, KeyFingerprint, KeyType};
+use super::manifests::AffectedKeyManifest;
+use super::proofs::ProofBundle;
 use crate::ignite::error::{IgniteError, Result};
 use crate::ignite::utils;
-use super::chain::{AuthorityKey, KeyFingerprint, KeyType};
-use super::proofs::ProofBundle;
-use super::manifests::AffectedKeyManifest;
 
 /// Initialize vault directories
 pub fn init_vault() -> Result<()> {
@@ -87,7 +87,11 @@ pub fn load_key(key_type: KeyType, fingerprint: &KeyFingerprint) -> Result<Autho
 }
 
 /// Persist proof bundle to vault
-pub fn save_proof(proof: &ProofBundle, fingerprint: &KeyFingerprint, timestamp: &str) -> Result<PathBuf> {
+pub fn save_proof(
+    proof: &ProofBundle,
+    fingerprint: &KeyFingerprint,
+    timestamp: &str,
+) -> Result<PathBuf> {
     init_vault()?;
 
     let path = proof_path(fingerprint, timestamp);
@@ -115,7 +119,8 @@ pub fn save_manifest(manifest: &AffectedKeyManifest) -> Result<PathBuf> {
     let path = manifest_path(manifest);
 
     // Use manifest's built-in JSON generation with digest
-    let json = manifest.to_json_with_digest()
+    let json = manifest
+        .to_json_with_digest()
         .map_err(|e| IgniteError::crypto_error("serialize_manifest", e.to_string()))?;
 
     atomic_write(&path, json.as_bytes())?;
@@ -124,9 +129,7 @@ pub fn save_manifest(manifest: &AffectedKeyManifest) -> Result<PathBuf> {
 
 /// Load manifest from vault
 pub fn load_manifest(parent_fp_short: &str, filename: &str) -> Result<AffectedKeyManifest> {
-    let path = utils::manifests_dir()
-        .join(parent_fp_short)
-        .join(filename);
+    let path = utils::manifests_dir().join(parent_fp_short).join(filename);
 
     let json = fs::read_to_string(&path)
         .map_err(|e| IgniteError::io_error("read_manifest", path.clone(), e))?;
@@ -143,8 +146,7 @@ pub fn list_keys(key_type: KeyType) -> Result<Vec<PathBuf>> {
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(&dir)
-        .map_err(|e| IgniteError::io_error("list_keys", dir, e))?;
+    let entries = fs::read_dir(&dir).map_err(|e| IgniteError::io_error("list_keys", dir, e))?;
 
     let mut paths = Vec::new();
     for entry in entries {
@@ -169,8 +171,7 @@ pub fn list_proofs(fingerprint: &KeyFingerprint) -> Result<Vec<PathBuf>> {
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(&dir)
-        .map_err(|e| IgniteError::io_error("list_proofs", dir, e))?;
+    let entries = fs::read_dir(&dir).map_err(|e| IgniteError::io_error("list_proofs", dir, e))?;
 
     let mut paths = Vec::new();
     for entry in entries {
@@ -195,8 +196,8 @@ pub fn list_manifests(parent_fp_short: &str) -> Result<Vec<PathBuf>> {
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(&dir)
-        .map_err(|e| IgniteError::io_error("list_manifests", dir, e))?;
+    let entries =
+        fs::read_dir(&dir).map_err(|e| IgniteError::io_error("list_manifests", dir, e))?;
 
     let mut paths = Vec::new();
     for entry in entries {
@@ -222,15 +223,17 @@ pub fn list_manifests(parent_fp_short: &str) -> Result<Vec<PathBuf>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use std::env;
-    use ed25519_dalek::{SigningKey, SecretKey};
+    use crate::ignite::authority::chain::{KeyFormat, KeyMaterial, KeyType};
+    use crate::ignite::authority::manifests::{
+        AffectedKeyManifest, ManifestChild, ManifestEvent, ManifestEventType,
+    };
+    use crate::ignite::authority::proofs::{AuthorityClaim, ProofBundle};
+    use ed25519_dalek::{SecretKey, SigningKey};
     use hub::random_ext::rand::{rng, Rng};
     use hub::time_ext::chrono::{Duration, Utc};
-    use crate::ignite::authority::proofs::{AuthorityClaim, ProofBundle};
-    use crate::ignite::authority::manifests::{AffectedKeyManifest, ManifestEvent, ManifestEventType, ManifestChild};
-    use crate::ignite::authority::chain::{KeyMaterial, KeyFormat, KeyType};
     use serial_test::serial;
+    use std::env;
+    use tempfile::TempDir;
 
     struct TestEnvironment {
         _temp_dir: TempDir,
@@ -240,7 +243,9 @@ mod tests {
         fn new() -> Self {
             let temp_dir = TempDir::new().unwrap();
             env::set_var("IGNITE_DATA_ROOT", temp_dir.path());
-            Self { _temp_dir: temp_dir }
+            Self {
+                _temp_dir: temp_dir,
+            }
         }
     }
 
@@ -287,8 +292,14 @@ mod tests {
         // Verify they match
         assert_eq!(loaded_key.key_type(), original_key.key_type());
         assert_eq!(loaded_key.fingerprint(), original_key.fingerprint());
-        assert_eq!(loaded_key.key_material().public_key(), original_key.key_material().public_key());
-        assert_eq!(loaded_key.key_material().private_key(), original_key.key_material().private_key());
+        assert_eq!(
+            loaded_key.key_material().public_key(),
+            original_key.key_material().public_key()
+        );
+        assert_eq!(
+            loaded_key.key_material().private_key(),
+            original_key.key_material().private_key()
+        );
     }
 
     #[test]
@@ -356,11 +367,26 @@ mod tests {
         let loaded_manifest = load_manifest(&parent_short, filename).unwrap();
 
         // Verify they match
-        assert_eq!(loaded_manifest.schema_version, original_manifest.schema_version);
-        assert_eq!(loaded_manifest.event.event_type, original_manifest.event.event_type);
-        assert_eq!(loaded_manifest.event.parent_fingerprint, original_manifest.event.parent_fingerprint);
-        assert_eq!(loaded_manifest.children.len(), original_manifest.children.len());
-        assert_eq!(loaded_manifest.children[0].fingerprint, original_manifest.children[0].fingerprint);
+        assert_eq!(
+            loaded_manifest.schema_version,
+            original_manifest.schema_version
+        );
+        assert_eq!(
+            loaded_manifest.event.event_type,
+            original_manifest.event.event_type
+        );
+        assert_eq!(
+            loaded_manifest.event.parent_fingerprint,
+            original_manifest.event.parent_fingerprint
+        );
+        assert_eq!(
+            loaded_manifest.children.len(),
+            original_manifest.children.len()
+        );
+        assert_eq!(
+            loaded_manifest.children[0].fingerprint,
+            original_manifest.children[0].fingerprint
+        );
 
         // Verify digest integrity
         assert!(loaded_manifest.verify_digest().is_ok());
@@ -438,6 +464,8 @@ mod tests {
         let proof_path = proof_path(&fingerprint, "2024-01-01T12-00-00Z");
         assert!(proof_path.to_string_lossy().contains("proofs"));
         assert!(proof_path.to_string_lossy().contains("abcdef12"));
-        assert!(proof_path.to_string_lossy().ends_with("2024-01-01T12-00-00Z.json"));
+        assert!(proof_path
+            .to_string_lossy()
+            .ends_with("2024-01-01T12-00-00Z.json"));
     }
 }

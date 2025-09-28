@@ -3,14 +3,14 @@
 //! Implements Ed25519 signature-based proofs for authority claims and subject receipts
 //! per IGNITE_PROOFS.md specification.
 
-use hub::time_ext::chrono::{DateTime, Utc};
-use hub::data_ext::serde::{Deserialize, Serialize};
-use hub::random_ext::rand::{Rng, rng};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use hub::data_ext::serde::{Deserialize, Serialize};
+use hub::random_ext::rand::{rng, Rng};
+use hub::time_ext::chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 
-use crate::ignite::error::{IgniteError, Result};
 use super::chain::KeyFingerprint;
+use crate::ignite::error::{IgniteError, Result};
 
 /// Authority claim payload (parent asserting control over child)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,20 +179,16 @@ impl ProofBundle {
             });
         }
 
-        let public_key = VerifyingKey::from_bytes(
-            self.public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| IgniteError::crypto_error("parse_public_key", "Invalid key length"))?,
-        )
-        .map_err(|e| IgniteError::crypto_error("parse_public_key", e.to_string()))?;
+        let public_key =
+            VerifyingKey::from_bytes(self.public_key.as_slice().try_into().map_err(|_| {
+                IgniteError::crypto_error("parse_public_key", "Invalid key length")
+            })?)
+            .map_err(|e| IgniteError::crypto_error("parse_public_key", e.to_string()))?;
 
-        let signature = Signature::from_bytes(
-            self.signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| IgniteError::crypto_error("parse_signature", "Invalid signature length"))?,
-        );
+        let signature =
+            Signature::from_bytes(self.signature.as_slice().try_into().map_err(|_| {
+                IgniteError::crypto_error("parse_signature", "Invalid signature length")
+            })?);
 
         public_key
             .verify(self.digest.as_bytes(), &signature)
@@ -234,7 +230,7 @@ impl ProofBundle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::{SigningKey, SecretKey};
+    use ed25519_dalek::{SecretKey, SigningKey};
     use hub::random_ext::rand::{rng, Rng};
 
     fn create_test_signing_key() -> SigningKey {
@@ -253,11 +249,7 @@ mod tests {
         let parent_fp = create_test_fingerprint("parent");
         let child_fp = create_test_fingerprint("child");
 
-        let claim = AuthorityClaim::new(
-            parent_fp.clone(),
-            child_fp.clone(),
-            "test purpose",
-        );
+        let claim = AuthorityClaim::new(parent_fp.clone(), child_fp.clone(), "test purpose");
 
         assert_eq!(claim.parent_fp, parent_fp);
         assert_eq!(claim.child_fp, child_fp);
