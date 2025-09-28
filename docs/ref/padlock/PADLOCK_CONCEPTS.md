@@ -149,6 +149,7 @@ Planned Padlock CLI wrappers will expose higher-level workflows (`padlock rotate
 - Webhook dispatch on manifest creation.
 - JSON output (`--output json`) for CLI commands.
 - Policy config file watchers to auto-apply rotation cadences.
+- Until Cage exposes first-class multi-recipient APIs, Ignite can lean on Cage’s proxy mode to call `age` directly with multiple recipients; this is a temporary bridge tracked by CAGE-08/09.
 
 ---
 
