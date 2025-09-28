@@ -2,7 +2,7 @@
  🚦 IGNITION ROADMAP v1.0
 ================================================================================
 
-Document Purpose: Translate IGNITE_CONCEPTS into an execution path with milestones, exit criteria, and story point budgets. Updated 2025-09-28.
+Document Purpose: Translate IGNITE_CONCEPTS into an execution path with milestones, exit criteria, and story point budgets. Updated 2025-09-27.
 
 --------------------------------------------------------------------------------
  PHASE 0 — Discovery Alignment (5 pts)
@@ -20,7 +20,7 @@ Milestone 0.2 — Systems Inventory (3 pts)
   • Exit: Inventory report + dependency matrix appended to CONTINUE.md.
 
 --------------------------------------------------------------------------------
- PHASE 1 — Authority Core (21 pts)
+ PHASE 1 — Authority Core (25 pts)
 --------------------------------------------------------------------------------
 Goal: Implement validated authority chain primitives and storage.
 
@@ -30,11 +30,12 @@ Milestone 1.1 — Data Model Concrete (8 pts)
   • Align module tree with RSB `MODULE_SPEC` / `PRELUDE_POLICY`; document prelude exports.
   • Exit: Unit tests for chain operations; metadata hash checks pass.
 
-Milestone 1.2 — Proof Engine Real (6 pts)
+Milestone 1.2 — Proof Engine Real (10 pts)
   • Replace mock signatures with Ed25519 (or chosen) cryptography using canonical JSON payloads.
+  • Implement `AuthorityValidationEngine` for pre-operation validation (key expiry, proof expiry, authority checks).
   • Enforce proof expiry/renewal hooks; subject/authority checks wired; archive historical proofs.
   • Deliver confidence test suite covering tampering, expiry, replay scenarios.
-  • Exit: Validation suite verifying allowed & disallowed pairs.
+  • Exit: Validation suite verifying allowed & disallowed pairs; validation engine rejects expired keys/proofs.
 
 Milestone 1.3 — Passphrase Policy Enforcement (7 pts)
   • KDF selection (Argon2id) + configurable policy enforcement.
@@ -42,15 +43,16 @@ Milestone 1.3 — Passphrase Policy Enforcement (7 pts)
   • Exit: Policy tests + CLI prompt UX signed off.
 
 --------------------------------------------------------------------------------
- PHASE 2 — Ignition Operations (26 pts)
+ PHASE 2 — Ignition Operations (31 pts)
 --------------------------------------------------------------------------------
 Goal: Build end-to-end ignition key lifecycle flows on top of Cage/age recipient management.
 
-Milestone 2.1 — Key Generation Pipeline (9 pts)
+Milestone 2.1 — Key Generation Pipeline (14 pts)
   • Wire `AuthorityAgeKeyGenerator` to storage + audit logging.
   • Record recipient set versions when keys are minted.
   • Add runtime guard ensuring `age` binary is available (friendly error).
-  • Exit: Integration test creating X→M→R chain locally with recipient audit trail.
+  • Implement Master-as-recovery-recipient for all child key encryptions.
+  • Exit: Integration test creating X→M→R chain locally with recipient audit trail; Master can decrypt all descendant artifacts.
 
 Milestone 2.2 — Rotation & Revocation (8 pts)
   • Cascade invalidation logic; tombstone registry; notifications stub.
@@ -111,3 +113,4 @@ Milestone 4.3 — Release Cut & Handoff (5 pts)
 1. Populate TASKS.txt with story-point tickets mapped to milestones. (Done)
 2. Clarify cryptographic choice (Milestone 1.2 dependency).
 3. Define storage backend strategy and recipient scoping rules before starting Milestone 1.1/2.1.
+4. Backlog: design pluggable authority topology strategy (IG-0110) so Ignite can host non Padlock hierarchies.

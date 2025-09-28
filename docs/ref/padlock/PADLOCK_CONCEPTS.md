@@ -173,3 +173,4 @@ Planned Padlock CLI wrappers will expose higher-level workflows (`padlock rotate
 - Federation across organizations (delegated trust domains).
 - Metrics/telemetry pipeline respecting privacy while surfacing health signals.
 - UX for AI agents to request temporary elevation with human approval.
+- Alternate authority topologies: abstract the AuthorityChain rules behind a pluggable topology interface so different domains (e.g., software licensing, supply-chain signing) can reuse Ignite with custom parent/child relationships while sharing storage, policy, and CLI infrastructure.

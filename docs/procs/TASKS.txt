@@ -2,7 +2,7 @@
  🎯 IGNITION TASK BACKLOG
 ================================================================================
 Legend: [Story Points] ID — Title (Milestone)
-Updated: 2025-09-28
+Updated: 2025-09-27
 
 --------------------------------------------------------------------------------
  PHASE 0 — Discovery Alignment (5 pts)
@@ -16,7 +16,7 @@ Updated: 2025-09-28
   • Acceptance: Inventory summary appended to CONTINUE.md; dependencies filed.
 
 --------------------------------------------------------------------------------
- PHASE 1 — Authority Core (21 pts)
+ PHASE 1 — Authority Core (25 pts)
 --------------------------------------------------------------------------------
 [3] IG-0101 — AuthorityChain Persistence MVP (M1.1)
   • Implement storage adapter (filesystem vault) + tamper-evident hashing.
@@ -31,12 +31,15 @@ Updated: 2025-09-28
   • Acceptance: Validation tests for valid/invalid pairings using canonical JSON payloads; mock removed.
 
 [2] IG-0104 — Proof Expiry Scheduler (M1.2)
-  • Implement proof expiry checks + renewal trigger stubs.
-  • Acceptance: Expired proofs rejected; renewal job flagged TODO.
+  • STATUS: Proof expiry checks implemented (ProofBundle::verify() checks expires_at).
+  • Implement renewal trigger stubs and background job scheduler.
+  • Acceptance: Renewal job flagged TODO with design doc; scheduler stub callable from CLI.
 
 [4] IG-0105 — Passphrase Policy Engine (M1.3)
-  • Enforce Argon2id KDF, entropy thresholds, reuse prevention.
-  • Acceptance: Policy tests; config file controls strength settings.
+  • Implement `AuthorityKey::is_expired()` and `IgnitionKey::is_expired()` methods.
+  • Implement `ExpirationPolicy` struct with default policies per key type (X/M/R=None, I=30d, D=7d).
+  • Add expiration metadata to key creation; enforce Argon2id KDF, entropy thresholds, reuse prevention.
+  • Acceptance: Policy tests; config controls strength + expiration settings; `is_expired()` returns correct values.
 
 [3] IG-0106 — Danger Mode Safeguards (M1.3)
   • Implement env + CLI confirmations; log override attempts.
@@ -50,17 +53,34 @@ Updated: 2025-09-28
   • Align module layout with `MODULE_SPEC`/`PRELUDE_POLICY`; isolate adapters.
   • Acceptance: Module tree reorganized; preludes document exports; hub namespace usage audited.
 
+[4] IG-0109 — Operation Validation Engine (M1.2)
+  • Port `AuthorityValidationEngine` from code_ref to live implementation.
+  • Implement pre-operation validation: check key expiration, proof expiration, authority relationships.
+  • Validation runs before any encrypt/decrypt/rotate/revoke operation.
+  • Acceptance: Validation engine rejects expired keys/proofs with clear error messages; integration tests verify enforcement.
+  • Dependencies: IG-0105 (for is_expired methods), IG-0103 (for proof verification).
+
+[5] IG-0110 — Pluggable Authority Topology (Backlog)
+  • Extract X→M→R→I→D hierarchy rules into an `AuthorityTopology` trait so Ignite can host alternate structures (e.g., software licensing).
+  • AuthorityChain/PolicyEngine consume topology via dependency injection; CLI/storage leverage `topology.all_key_types()` instead of fixed lists.
+  • Acceptance: Default Padlock topology untouched; a sample alternate topology can be registered and exercised via unit tests.
+  • Dependencies: AuthorityChain implementation complete; PolicyEngine available for topology-aware defaults.
+
 --------------------------------------------------------------------------------
- PHASE 2 — Ignition Operations (26 pts)
+ PHASE 2 — Ignition Operations (31 pts)
 --------------------------------------------------------------------------------
 [5] IG-0201 — Key Generation Flow (M2.1)
   • Wire `AuthorityAgeKeyGenerator` to storage + audit logging.
   • Persist recipient set versions alongside new keys.
-  • Acceptance: Integration test creates X→M→R chain; logs capture recipient hashes.
+  • Add operation-time validation: check key expiration + proof expiration before encrypt/decrypt.
+  • Acceptance: Integration test creates X→M→R chain; logs capture recipient hashes; operations reject expired keys.
 
 [4] IG-0202 — Ignition Wrap & Passphrase UX (M2.1)
+  • Implement `IgnitionKey` struct with passphrase-wrapped key material.
   • Implement passphrase prompts/env handling; secure storage of wrapped keys.
-  • Acceptance: I/D key creation flows pass UX review; recipient public materials exported for Cage.
+  • Add expiration enforcement in `IgnitionKey::unlock()` - reject if key expired per ExpirationPolicy.
+  • Acceptance: I/D key creation flows pass UX review; unlock enforces expiration; recipient public materials exported for Cage.
+  • Dependencies: IG-0105 (ExpirationPolicy, is_expired methods).
 
 [5] IG-0203 — Lineage Recording & Proof Emission (M2.1)
   • Persist authority proofs + subject proofs in vault.
@@ -81,6 +101,15 @@ Updated: 2025-09-28
 [2] IG-0208 — Age Binary Guard (M2.1)
   • Ensure runtime checks surface a clear error when `age` is missing.
   • Acceptance: CLI/unit tests simulate missing binary and receive actionable guidance.
+
+[5] IG-0209 — Master-as-Recovery-Recipient (M2.1)
+  • Implement automatic Master inclusion in recipient sets for Repo/Ignition/Distro encryption.
+  • Add `AuthorityChain::find_master_ancestor()` to walk chain upward to Master level.
+  • Add recipient building logic to include both target key and Master for recovery access.
+  • Wire into encryption operations so Master can always decrypt child-encrypted artifacts.
+  • Acceptance: Tests verify Master included in all R/I/D recipient sets; Master can decrypt artifacts encrypted by descendants; Skull/Master encryptions exclude this behavior.
+  • Dependencies: IG-0201 (Key Generation Flow), AuthorityChain implementation complete.
+  • Complexity: Chain traversal logic + recipient set assembly + encryption integration + edge cases.
 
 [3] IG-0207 — Affected-Key Manifest Schema (M2.2)
   • Define manifest JSON (fingerprint, md5, scope, issued_at) and hashing rules.
