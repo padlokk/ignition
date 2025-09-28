@@ -10,6 +10,7 @@ Ignite is a robust, security-focused CLI tool designed for managing authority ch
 - **Secure Key Rotation**: Cryptographically sound key generation and rotation mechanisms
 - **CLI-Driven Workflow**: Automation-friendly command-line interfaces
 - **Manifest-Based Access Control**: Define and enforce access policies through cryptographic manifests
+- **Policy Engine Enforcement**: Apply expiration and passphrase-strength policies at key creation time
 
 ### Authority Chain Hierarchy
 
@@ -58,7 +59,7 @@ ignite status
 
 ### Basic CLI Commands
 
-1. Create a new authority key:
+1. Create a new authority key (policies enforce expiration defaults and passphrase rules):
    ```bash
    ignite create --key-type master --description "Primary authority key"
    ```
@@ -97,9 +98,9 @@ ignite status
 
 ### Components
 
-- **CLI Module**: Command-line interface and user interactions
-- **Authority Module**: Key lifecycle and chain management
-- **Security Module**: Policy enforcement and cryptographic validation
+- **CLI Module**: Command-line interface and user interactions (RSB bootstrap/options!/dispatch!)
+- **Authority Module**: Key lifecycle and chain management (AuthorityChain DAG, proofs, manifests)
+- **Security Module**: Modular `PolicyEngine` orchestrating expiration & passphrase policies
 - **Storage Adapters**: Flexible key storage (XDG, local filesystem)
 
 ### Security Model

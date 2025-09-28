@@ -121,7 +121,9 @@ Validation flow:
 
 ## 6. Policy & Governance
 
-- **Expiration Policies** – Configurable per tier (e.g., D keys ≤ 30 days, I keys ≤ 90 days).
+- **Policy Engine** – Modular `PolicyEngine` composes policies that participate in `apply_key_defaults`, `validate_key`, and `validate_passphrase` phases (default bundle: expiration + passphrase strength).
+- **Expiration Policies** – Defaults applied automatically (Ignition ≈30d, Distro ≈7d) with warning windows; additional tiers can opt-in via policy configuration.
+- **Passphrase Enforcement** – Ignition-tier keys are wrapped only when passphrases satisfy length/diversity/ban-list rules; violations bubble up as CLI errors.
 - **Dual Control** – Skull and Master actions require secondary confirmation (e.g., signed token, out-of-band approval).
 - **Recipient Scoping** – D keys are tagged with repo + path scopes, enforced by Cage when constructing recipient lists.
 - **Audit Requirements** – Every mutation must produce manifest + proof; logs contain fingerprint, actor, reason codes.
