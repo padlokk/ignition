@@ -35,11 +35,10 @@ Updated: 2025-09-27
   • Implement renewal trigger stubs and background job scheduler.
   • Acceptance: Renewal job flagged TODO with design doc; scheduler stub callable from CLI.
 
-[4] IG-0105 — Passphrase Policy Engine (M1.3)
-  • Implement `AuthorityKey::is_expired()` and `IgnitionKey::is_expired()` methods.
-  • Implement `ExpirationPolicy` struct with default policies per key type (X/M/R=None, I=30d, D=7d).
-  • Add expiration metadata to key creation; enforce Argon2id KDF, entropy thresholds, reuse prevention.
-  • Acceptance: Policy tests; config controls strength + expiration settings; `is_expired()` returns correct values.
+[4] IG-0105 — Passphrase/Expiration Policy Engine (M1.3)
+  • STATUS: `AuthorityKey::is_expired()` implemented; default `ExpirationPolicy` + `PassphraseStrengthPolicy` wired through CLI create.
+  • Remaining: Port Argon2id-based `PassphraseHash`, reuse-prevention, and ignition-specific expiry checks (handled in IG-0202).
+  • Acceptance: Policy tests; config controls strength + expiration settings; ignition wrapping enforces same policies.
 
 [3] IG-0106 — Danger Mode Safeguards (M1.3)
   • Implement env + CLI confirmations; log override attempts.
@@ -76,11 +75,11 @@ Updated: 2025-09-27
   • Acceptance: Integration test creates X→M→R chain; logs capture recipient hashes; operations reject expired keys.
 
 [4] IG-0202 — Ignition Wrap & Passphrase UX (M2.1)
-  • Implement `IgnitionKey` struct with passphrase-wrapped key material.
+  • Port `IgnitionKey`, `PassphraseHash`, Argon2id KDF, and reuse-prevention from code_ref into live module.
   • Implement passphrase prompts/env handling; secure storage of wrapped keys.
-  • Add expiration enforcement in `IgnitionKey::unlock()` - reject if key expired per ExpirationPolicy.
+  • Integrate PolicyEngine passphrase validation + expiration checks in `IgnitionKey::unlock()`.
   • Acceptance: I/D key creation flows pass UX review; unlock enforces expiration; recipient public materials exported for Cage.
-  • Dependencies: IG-0105 (ExpirationPolicy, is_expired methods).
+  • Dependencies: IG-0105 (policy engine), IG-0109 (validation engine).
 
 [5] IG-0203 — Lineage Recording & Proof Emission (M2.1)
   • Persist authority proofs + subject proofs in vault.
@@ -167,3 +166,10 @@ Updated: 2025-09-27
 • Update CONTINUE.md at session end with progress and blockers.
 • Adjust story points as implementation details solidify.
 • Reference ROADMAP milestones when editing or adding tasks.
+[3] IG-0111 — Policy Configuration Surface (Backlog)
+  • Allow loading policy defaults (expiration windows, strength rules) from config file or CLI flags.
+  • Acceptance: PolicyEngine reads overrides; documentation updated with configuration examples.
+
+[3] IG-0303 — CLI Command Extraction (Backlog)
+  • Move command handlers out of `src/bin/cli_ignite.rs` into `ignite::cli::commands` for reuse/testing.
+  • Acceptance: Unit tests cover handlers; binary calls through the module layer.
